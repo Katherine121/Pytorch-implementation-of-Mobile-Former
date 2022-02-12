@@ -62,6 +62,8 @@ def train(
     record_dir_acc = check_point_dir + 'record_val_acc.npy'
     record_dir_loss = check_point_dir + 'record_loss.npy'
     model_save_dir = check_point_dir + 'mobile_former_294_100.pth'
+    model.load_state_dict(torch.load(model_save_dir))
+
     for e in range(epochs):
         model.train()
         total_loss = 0
@@ -211,6 +213,7 @@ if __name__ == '__main__':
         # Basic setting, mode: 'run' or 'search'
         'mode': 'run',
         # 'model': mobile_former_151(10, pre_train=True, state_dir='./check_point/mobile_former_151_100.pth'),
+        # 'model': model,
         'model': model,
         'criterion': nn.CrossEntropyLoss(),
         'mixup': 0,

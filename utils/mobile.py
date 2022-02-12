@@ -10,13 +10,13 @@ class hswish(nn.Module):
         out = x * F.relu6(x + 3, inplace=True) / 6
         return out
 
-
+# 没用到
 class hsigmoid(nn.Module):
     def forward(self, x):
         out = F.relu6(x + 3, inplace=True) / 6
         return out
 
-
+# 没用到
 class SeModule(nn.Module):
     def __init__(self, inp, reduction=4):
         super(SeModule, self).__init__()
@@ -46,7 +46,9 @@ class Mobile(nn.Module):
         self.fc2 = nn.Linear(dim // reduction, 2 * k * hid)
         self.sigmoid = nn.Sigmoid()
 
+        # [1.0000, 1.0000, 0.5000, 0.5000]
         self.register_buffer('lambdas', torch.Tensor([1.] * k + [0.5] * k).float())
+        # [1, 0, 0, 0]
         self.register_buffer('init_v', torch.Tensor([1.] + [0.] * (2 * k - 1)).float())
         self.stride = stride
         # self.se = DyReLUB(channels=out, k=1) if dyrelu else se
@@ -72,25 +74,28 @@ class Mobile(nn.Module):
             )
 
     def get_relu_coefs(self, z):
+        # 取第一个token
         theta = z[:, 0, :]
         # b d -> b d//4
         theta = self.fc1(theta)
         theta = self.relu(theta)
-        # b d//4 -> b 2*k
+        # b d//4 -> b 2*k*hid
         theta = self.fc2(theta)
         theta = 2 * self.sigmoid(theta) - 1
-        # b 2*k
+        # b 2*k*hid
         return theta
 
     def forward(self, x, z):
         theta = self.get_relu_coefs(z)
-        # b 2*k*c -> b c 2*k                                     2*k            2*k
+        # b 2*k*hid -> b hid 2*k                                  2*k            2*k
         relu_coefs = theta.view(-1, self.hid, 2 * self.k) * self.lambdas + self.init_v
 
+        # b*hid*h*w, b*hid*2k
         out = self.bn1(self.conv1(x))
         out_ = [out, relu_coefs]
         out = self.act1(out_)
 
+        # b*hid*h*w, b*hid*2k
         out = self.bn2(self.conv2(out))
         out_ = [out, relu_coefs]
         out = self.act2(out_)
@@ -98,6 +103,7 @@ class Mobile(nn.Module):
         out = self.bn3(self.conv3(out))
         if self.se is not None:
             out = self.se(out)
+        # 如果图片没有下采样，则残差连接，此模块没有下采样所以要残差连接
         out = out + self.shortcut(x) if self.stride == 1 else out
         return out
 
@@ -112,7 +118,9 @@ class MobileDown(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.fc2 = nn.Linear(dim // reduction, 2 * k * hid)
         self.sigmoid = nn.Sigmoid()
+        # [1.0000, 1.0000, 0.5000, 0.5000]
         self.register_buffer('lambdas', torch.Tensor([1.] * k + [0.5] * k).float())
+        # [1, 0, 0, 0]
         self.register_buffer('init_v', torch.Tensor([1.] + [0.] * (2 * k - 1)).float())
         self.stride = stride
         # self.se = DyReLUB(channels=out, k=1) if dyrelu else se
@@ -143,32 +151,40 @@ class MobileDown(nn.Module):
             )
 
     def get_relu_coefs(self, z):
+        # 取第一个token
         theta = z[:, 0, :]
         # b d -> b d//4
         theta = self.fc1(theta)
         theta = self.relu(theta)
-        # b d//4 -> b 2*k
+        # b d//4 -> b 2*k*hid
         theta = self.fc2(theta)
         theta = 2 * self.sigmoid(theta) - 1
-        # b 2*k
+        # b 2*k*hid
         return theta
 
     def forward(self, x, z):
         theta = self.get_relu_coefs(z)
-        # b 2*k*c -> b c 2*k                                     2*k            2*k
+        # 第一个参数*1，左边+1，右边+0；第二个参数*0.5，+0
+        # b 2*k*hid -> b hid 2*k                                  2*k            2*k
         relu_coefs = theta.view(-1, self.hid, 2 * self.k) * self.lambdas + self.init_v
 
+        # b*hid*h*w, b*hid*2k
         out = self.dw_bn1(self.dw_conv1(x))
         out_ = [out, relu_coefs]
         out = self.dw_act1(out_)
+
+        # 这里用的是普通relu，所以不加第一个token
         out = self.pw_act1(self.pw_bn1(self.pw_conv1(out)))
 
+        # b*hid*h*w, b*hid*2k
         out = self.dw_bn2(self.dw_conv2(out))
         out_ = [out, relu_coefs]
         out = self.dw_act2(out_)
+
         out = self.pw_bn2(self.pw_conv2(out))
 
         if self.se is not None:
             out = self.se(out)
+        # 如果图片没有下采样，则残差连接，此模块有下采样所以不残差连接
         out = out + self.shortcut(x) if self.stride == 1 else out
         return out

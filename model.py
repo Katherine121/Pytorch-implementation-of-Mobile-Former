@@ -31,6 +31,7 @@ class BaseBlock(nn.Module):
 class MobileFormer(nn.Module):
     def __init__(self, cfg):
         super(MobileFormer, self).__init__()
+        # 初始化6*192token
         self.token = nn.Parameter(nn.Parameter(torch.randn(1, cfg['token'], cfg['embed'])))
         # stem 3 224 224 -> 16 112 112
         self.stem = nn.Sequential(
@@ -38,9 +39,9 @@ class MobileFormer(nn.Module):
             nn.BatchNorm2d(cfg['stem']),
             hswish(),
         )
-        # bneck
+        # bneck 先*2后还原，步长为1，组卷积
         self.bneck = nn.Sequential(
-            nn.Conv2d(cfg['stem'], cfg['bneck']['e'], 3, stride=cfg['bneck']['s'], padding=1, groups=cfg['stem']),
+            nn.Conv2d(cfg['stem'], cfg['bneck']['e'], kernel_size=3, stride=cfg['bneck']['s'], padding=1, groups=cfg['stem']),
             hswish(),
             nn.Conv2d(cfg['bneck']['e'], cfg['bneck']['o'], kernel_size=1, stride=1),
             nn.BatchNorm2d(cfg['bneck']['o'])
@@ -49,6 +50,7 @@ class MobileFormer(nn.Module):
         # body
         self.block = nn.ModuleList()
         for kwargs in cfg['body']:
+            # 把{'inp': 12, 'exp': 72, 'out': 16, 'se': None, 'stride': 2, 'heads': 2}和token维度192传进去
             self.block.append(BaseBlock(**kwargs, dim=cfg['embed']))
         inp = cfg['body'][-1]['out']
         exp = cfg['body'][-1]['exp']
@@ -77,14 +79,19 @@ class MobileFormer(nn.Module):
                     init.constant_(m.bias, 0)
 
     def forward(self, x):
+        # batch_size, c, h, w
         b, _, _, _ = x.shape
+        # 因为最开始初始化的是1*6*192，在0维度重复b次，1维度重复1次，2维度重复1次，就形成了b*6*192
         z = self.token.repeat(b, 1, 1)
         x = self.bneck(self.stem(x))
         for m in self.block:
             x, z = m([x, z])
         # x, z = self.block([x, z])
+        # 转成b个
         x = self.avg(self.bn(self.conv(x))).view(b, -1)
+        # 取第一个token
         z = z[:, 0, :].view(b, -1)
+        # 最后一个维度拼接
         out = torch.cat((x, z), -1)
         return self.head(out)
         # return x, z
