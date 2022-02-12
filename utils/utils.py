@@ -15,7 +15,9 @@ class MyDyRelu(nn.Module):
         # BxCxHxW -> HxWxBxCx1
         x_perm = x.permute(2, 3, 0, 1).unsqueeze(-1)
         # h w b c 1 -> h w b c k
+        # b*hid*2k: b*hid*k + b*hid*k 前k个是第一个超参，后k个是第二个超参
         output = x_perm * relu_coefs[:, :, :self.k] + relu_coefs[:, :, self.k:]
+        # 取k维度上最大的值，[0]为值，[1]为索引
         # HxWxBxCxk -> BxCxHxW
         result = torch.max(output, dim=-1)[0].permute(2, 3, 0, 1)
         return result

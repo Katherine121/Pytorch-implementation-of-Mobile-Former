@@ -88,6 +88,7 @@ class Mobile(nn.Module):
     def forward(self, x, z):
         theta = self.get_relu_coefs(z)
         # b 2*k*hid -> b hid 2*k                                  2*k            2*k
+        # 前k个是第一个超参，后k个是第二个超参
         relu_coefs = theta.view(-1, self.hid, 2 * self.k) * self.lambdas + self.init_v
 
         # b*hid*h*w, b*hid*2k
@@ -166,6 +167,7 @@ class MobileDown(nn.Module):
         theta = self.get_relu_coefs(z)
         # 第一个参数*1，左边+1，右边+0；第二个参数*0.5，+0
         # b 2*k*hid -> b hid 2*k                                  2*k            2*k
+        # 前k个是第一个超参，后k个是第二个超参
         relu_coefs = theta.view(-1, self.hid, 2 * self.k) * self.lambdas + self.init_v
 
         # b*hid*h*w, b*hid*2k
