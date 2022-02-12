@@ -19,7 +19,36 @@ config_52 = {
         {'inp': 96, 'exp': 576, 'out': 96, 'se': None, 'stride': 1, 'heads': 2},
     ],
     'fc1': 1024,  # hid_layer
-    'fc2': 1000  # num_clasess
+    'fc2': 100   # num_clasess
+    ,
+}
+
+config_151 = {
+    'name': 'mf151',
+    'token': 6,  # tokens
+    'embed': 192,  # embed_dim
+    'stem': 12,
+    # stage1
+    'bneck': {'e': 24, 'o': 12, 's': 1},  # exp out stride
+    'body': [
+        # stage2
+        {'inp': 12, 'exp': 72, 'out': 16, 'se': None, 'stride': 2, 'heads': 2},
+        {'inp': 16, 'exp': 48, 'out': 16, 'se': None, 'stride': 1, 'heads': 2},
+        # stage3
+        {'inp': 16, 'exp': 96, 'out': 32, 'se': None, 'stride': 2, 'heads': 2},
+        {'inp': 32, 'exp': 96, 'out': 32, 'se': None, 'stride': 1, 'heads': 2},
+        # stage4
+        {'inp': 32, 'exp': 192, 'out': 64, 'se': None, 'stride': 2, 'heads': 2},
+        {'inp': 64, 'exp': 256, 'out': 64, 'se': None, 'stride': 1, 'heads': 2},
+        {'inp': 64, 'exp': 384, 'out': 88, 'se': None, 'stride': 1, 'heads': 2},
+        {'inp': 88, 'exp': 528, 'out': 88, 'se': None, 'stride': 1, 'heads': 2},
+        # stage5
+        {'inp': 88, 'exp': 528, 'out': 128, 'se': None, 'stride': 2, 'heads': 2},
+        {'inp': 128, 'exp': 768, 'out': 128, 'se': None, 'stride': 1, 'heads': 2},
+        {'inp': 128, 'exp': 768, 'out': 128, 'se': None, 'stride': 1, 'heads': 2},
+    ],
+    'fc1': 1280,  # hid_layer
+    'fc2': 100   # num_clasess
     ,
 }
 
@@ -48,7 +77,7 @@ config_294 = {
         {'inp': 192, 'exp': 1152, 'out': 192, 'se': None, 'stride': 1, 'heads': 2},
     ],
     'fc1': 1920,  # hid_layer
-    'fc2': 1000  # num_clasess
+    'fc2': 100   # num_clasess
     ,
 }
 
@@ -75,12 +104,13 @@ config_508 = {
         {'inp': 240, 'exp': 1440, 'out': 240, 'se': None, 'stride': 1, 'heads': 2},
     ],
     'fc1': 1920,  # hid_layer
-    'fc2': 1000  # num_clasess
+    'fc2': 100   # num_clasess
     ,
 }
 
 config = {
     'mf52': config_52,
+    'mf151': config_151,
     'mf294': config_294,
     'mf508': config_508
 }

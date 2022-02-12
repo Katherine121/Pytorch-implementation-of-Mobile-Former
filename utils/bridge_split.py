@@ -6,7 +6,7 @@ from einops import rearrange
 # inputs: x(b c h w) z(b m d)
 # output: z(b m d)
 class Mobile2Former(nn.Module):
-    def __init__(self, dim, heads, c, dropout=0.):
+    def __init__(self, dim, heads, c, dropout=0.3):
         super(Mobile2Former, self).__init__()
         inner_dim = c
         dim_head = c // heads
@@ -41,7 +41,7 @@ class Mobile2Former(nn.Module):
 # inputs: x(b c h w) z(b m d)
 # output: x(b c h w)
 class Former2Mobile(nn.Module):
-    def __init__(self, dim, heads, c, dropout=0.):
+    def __init__(self, dim, heads, c, dropout=0.3):
         super(Former2Mobile, self).__init__()
         inner_dim = c
         dim_head = c // heads

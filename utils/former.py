@@ -19,7 +19,7 @@ class PreNorm(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, dim, hidden_dim, dropout=0.):
+    def __init__(self, dim, hidden_dim, dropout=0.3):
         super(FeedForward, self).__init__()
         self.net = nn.Sequential(
             nn.Linear(dim, hidden_dim),
@@ -34,7 +34,7 @@ class FeedForward(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, dim, heads=8, dim_head=64, dropout=0.):
+    def __init__(self, dim, heads=8, dim_head=64, dropout=0.3):
         super(Attention, self).__init__()
         inner_dim = heads * dim_head  # head数量和每个head的维度
         project_out = not (heads == 1 and dim_head == dim)
