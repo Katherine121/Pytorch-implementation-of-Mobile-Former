@@ -4,17 +4,13 @@ from torch.optim import lr_scheduler, optimizer
 from torch.serialization import save
 from torchvision.transforms.transforms import Scale
 
-# from model_generator import *
 import torchvision.datasets as dset
 from torchvision import transforms
 from torch.utils.data import DataLoader, sampler
-from torch.autograd import Variable
-# from extend import *
 import torch.nn as nn
 
 from torchvision.transforms import autoaugment
 # from torchvision.transforms import RandomErasing
-# from random_aug import RandomAugment
 from model import MobileFormer
 from utils.config import config
 from utils.utils import cutmix, cutmix_criterion, RandomErasing
@@ -61,7 +57,7 @@ def train(
 
     record_dir_acc = check_point_dir + 'record_val_acc.npy'
     record_dir_loss = check_point_dir + 'record_loss.npy'
-    model_save_dir = check_point_dir + 'mobile_former_294_100.pth'
+    model_save_dir = check_point_dir + 'mobile_former_151_100.pth'
     model.load_state_dict(torch.load(model_save_dir))
 
     for e in range(epochs):

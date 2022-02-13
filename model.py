@@ -6,7 +6,11 @@ from torch.nn import init
 from utils.mobile import Mobile, hswish, MobileDown
 from utils.former import Former
 from utils.bridge import Mobile2Former, Former2Mobile
-from utils.config import config_294, config_508, config_52
+from utils.config import config_294, config_508, config_151
+
+from thop import profile
+from ptflops import get_model_complexity_info
+from pytorch_model_summary import summary
 
 class BaseBlock(nn.Module):
     def __init__(self, inp, exp, out, se, stride, heads, dim):
@@ -98,13 +102,25 @@ class MobileFormer(nn.Module):
 
 
 if __name__ == "__main__":
-    model = MobileFormer(config_52)
-    inputs = torch.randn((3, 3, 224, 224))
-    print(inputs.shape)
+    # model = MobileFormer(config_151)
+    # inputs = torch.randn((3, 3, 224, 224))
+    # print(inputs.shape)
     # for i in range(100):
     #     t = time.time()
     #     output = model(inputs)
     #     print(time.time() - t)
-    print("Total number of parameters in networks is {} M".format(sum(x.numel() for x in model.parameters()) / 1e6))
-    output = model(inputs)
-    print(output.shape)
+    # print("Total number of parameters in networks is {} M".format(sum(x.numel() for x in model.parameters()) / 1e6))
+    # output = model(inputs)
+    # print(output.shape)
+
+    model = MobileFormer(config_151)
+    inputs = torch.randn((1, 3, 224, 224))
+    # 第一种方法
+    flops, params = profile(model, (inputs,))
+    print('flops: ', flops, 'params: ', params)
+    print('flops: %.2f M, params: %.2f M' % (flops / 1000000.0, params / 1000000.0))
+    # 第二种方法：每一个block的参数量和计算量都有
+    flops, params = get_model_complexity_info(model, (3, 224, 224), as_strings=True, print_per_layer_stat=True)
+    print('flops: ', flops, 'params: ', params)
+    # 第三种方法：每一个block的参数量和计算量都有。更简略
+    print(summary(model, inputs, show_input=False, show_hierarchical=False))
