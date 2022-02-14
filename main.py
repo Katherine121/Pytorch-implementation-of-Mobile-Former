@@ -17,8 +17,6 @@ from utils.utils import cutmix, cutmix_criterion, RandomErasing
 
 
 def check_accuracy(loader, model, device=None, dtype=None):
-    num_correct = 0
-    num_samples = 0
     total_correct = 0
     total_samples = 0
 
@@ -44,13 +42,13 @@ def check_accuracy(loader, model, device=None, dtype=None):
 
 
 def train(
-        mixup=0,
+        loader_train=None, loader_val=None,
+        device=None, dtype=None,
+        model=None,
         criterion=nn.CrossEntropyLoss(),
-        model=None, loader_train=None,
-        loader_val=None, scheduler=None, optimizer=None, wd=None,
-        epochs=1, device=None, dtype=None, check_point_dir=None, save_epochs=None, mode=None
+        scheduler=None, optimizer=None,
+        epochs=450, check_point_dir=None, save_epochs=None
 ):
-    model = model.to(device)
     acc = 0
     accs = [0]
     losses = []
@@ -58,6 +56,8 @@ def train(
     record_dir_acc = check_point_dir + 'record_val_acc.npy'
     record_dir_loss = check_point_dir + 'record_loss.npy'
     model_save_dir = check_point_dir + 'mobile_former_151_100.pth'
+
+    model = model.to(device)
     model.load_state_dict(torch.load(model_save_dir))
 
     for e in range(epochs):
@@ -95,19 +95,21 @@ def train(
             optimizer.step()
             if scheduler is not None:
                 scheduler.step()
-            # 300个iteration就计算一下测试集准确率
+            # 200个iteration就计算一下测试集准确率
             if t % 200 == 0:
                 print("Iteration:" + str(t) + ', average Loss = ' + str(loss_value))
-        # 每个epoch记录一次测试集准确率和所有batch的平均训练损失
-        model.eval()
+
         total_loss /= t
         losses.append(total_loss)
 
+        model.eval()
         acc = check_accuracy(loader_val, model, device=device)
         accs.append(np.array(acc))
+
+        # 每个epoch记录一次测试集准确率和所有batch的平均训练损失
         print("Epoch:" + str(e) + ', Val acc = ' + str(acc) + ', average Loss = ' + str(total_loss))
         # 如果到了保存的epoch或者是训练完成的最后一个epoch
-        if (mode == 'run' and e % save_epochs == 0 and e != 0) or (mode == 'run' and e == epochs - 1):
+        if (e % save_epochs == 0 and e != 0) or e == epochs - 1:
             np.save(record_dir_acc, np.array(accs))
             np.save(record_dir_loss, np.array(losses))
             torch.save(model.state_dict(), model_save_dir)
@@ -115,73 +117,42 @@ def train(
 
 
 def run(
-        mixup=0,
+        loader_train=None, loader_val=None,
+        device=None, dtype=None,
+        model=None,
         criterion=nn.CrossEntropyLoss(),
-        mode='run', model=None,
-        search_epoch=None, lr_range=None, wd_range=[-4, -2],
-        search_result_save_dir=None,
-        run_epoch=30, lr=0.0008, wd=0.10,
-        check_point_dir=None, save_epochs=None,
-        T_mult=None, loader_train=None, loader_val=None, device=None, dtype=None
+        T_mult=2,
+        epoch=450, lr=0.0009, wd=0.10,
+        check_point_dir=None, save_epochs=3,
+
 ):
-    if mode == 'search':
-        num_iter = 10000000
-        epochs = search_epoch
-    else:
-        num_iter = 1
-        epochs = run_epoch
-    if mode == 'search':
-        print('Searching under lr: 10 ** (', lr_range[0], ',', lr_range[1], ') , wd: 10 ** (', wd_range[0], ',',
-              wd_range[1], '), every ', epochs, ' epoch')
-    else:
-        print(mode + 'ing under lr: ' + str(lr) + ' , wd: ' + str(wd) + ' for ', str(epochs), ' epochs.')
-    for i in range(num_iter):
-        model_ = model
-        if mode == 'search':
-            # low: 采样下界，float类型，默认值为0
-            # high: 采样上界，float类型，默认值为1
-            # size: 输出样本数目，为int或元组(tuple)类型，例如，size=(m,n,k), 则输出m*n*k个样本，缺省时输出1个值
-            # 返回值：ndarray类型，其形状和参数size中描述一致
-            learning_rate = 10 ** np.random.uniform(lr_range[0], lr_range[1])
-            weight_decay = 10 ** np.random.uniform(wd_range[0], wd_range[1])
-        else:
-            learning_rate = lr
-            weight_decay = wd
+    epochs = epoch
+    model_ = model
+    learning_rate = lr
+    weight_decay = wd
+    print('Training under lr: ' + str(lr) + ' , wd: ' + str(wd) + ' for ', str(epochs), ' epochs.')
 
-        optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate,
-                                      betas=(0.9, 0.999), weight_decay=wd)
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=3, T_mult=T_mult)
-        args = {
-            'mixup': mixup,
-            'criterion': criterion,
-            'model': model_, 'loader_train': loader_train, 'loader_val': loader_val,
-            'scheduler': lr_scheduler, 'optimizer': optimizer, 'wd': wd,
-            'epochs': epochs, 'device': device, 'dtype': dtype,
-            'check_point_dir': check_point_dir, 'save_epochs': save_epochs, 'mode': mode
-        }
-        print('#############################     Training...     #############################')
-        val_acc = train(**args)
-        # 最后一个epoch的最后一次测试集准确率
-        print('Training for ' + str(epochs) + ' epochs, learning rate: ', learning_rate, ', weight decay: ',
-              weight_decay, ', Val acc: ', val_acc)
-
-        if mode == 'search':
-            with open(search_result_save_dir + 'search_result.txt', "a") as f:
-                f.write(str(epochs) + ' epochs, learning rate:' + str(learning_rate) + ', weight decay: ' + str(
-                    weight_decay) + ', Val acc: ' + str(val_acc) + '\n')
-        if mode == 'run':
-            print('Done, check_point saved in ', check_point_dir)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate,
+                                  betas=(0.9, 0.999), weight_decay=wd)
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=3, T_mult=T_mult)
+    args = {
+        'loader_train': loader_train, 'loader_val': loader_val,
+        'device': device, 'dtype': dtype,
+        'model': model_,
+        'criterion': criterion,
+        'scheduler': lr_scheduler, 'optimizer': optimizer,
+        'epochs': epochs,
+        'check_point_dir': check_point_dir, 'save_epochs': save_epochs,
+    }
+    print('#############################     Training...     #############################')
+    val_acc = train(**args)
+    # 最后一个epoch的最后一次测试集准确率
+    print('Training for ' + str(epochs) + ' epochs, learning rate: ', learning_rate, ', weight decay: ',
+          weight_decay, ', Val acc: ', val_acc)
+    print('Done, model saved in ', check_point_dir)
 
 
 if __name__ == '__main__':
-    print('###############################  Training test  ###############################')
-    dtype = torch.float32
-    USE_GPU = True
-    if USE_GPU and torch.cuda.is_available():
-        device = torch.device('cuda')
-    else:
-        device = torch.device('cpu')
-    print('Device: ', device)
     print('############################### Dataset loading ###############################')
 
     transform = transforms.Compose([
@@ -199,28 +170,20 @@ if __name__ == '__main__':
     cifar_val = dset.CIFAR100('./dataset/', train=False, download=True, transform=transform)
     loader_val = DataLoader(cifar_val, batch_size=64, shuffle=True, pin_memory=True)
 
-    cfg = config['mf151']
-    model = MobileFormer(cfg)
-
     print('###############################  Dataset loaded  ##############################')
+
+    device = torch.device('cuda')
+    cfg = config['mf151']
     args = {
         'loader_train': loader_train, 'loader_val': loader_val,
-        'device': device, 'dtype': dtype,
-        # Basic setting, mode: 'run' or 'search'
-        'mode': 'run',
+        'device': device, 'dtype': torch.float32,
         # 'model': mobile_former_151(10, pre_train=True, state_dir='./check_point/mobile_former_151_100.pth'),
         # 'model': model,
-        'model': model,
+        'model': MobileFormer(cfg),
         'criterion': nn.CrossEntropyLoss(),
-        'mixup': 0,
         # 余弦退火
         'T_mult': 2,
-        # If search: (Masked if run)
-        'search_epoch': 2, 'lr_range': [-4, -2.5], 'wd_range': [-3, -1],
-        'search_result_save_dir': './search_result/',
-        # If run: (Masked if search)
-        'run_epoch': 450, 'lr': 0.0009, 'wd': 0.10,
-        'check_point_dir': './check_point/',
-        'save_epochs': 3,
+        'epoch': 450, 'lr': 0.0009, 'wd': 0.10,
+        'check_point_dir': './check_point/', 'save_epochs': 3,
     }
     run(**args)

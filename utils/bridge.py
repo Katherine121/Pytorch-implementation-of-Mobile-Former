@@ -2,7 +2,7 @@ import torch
 from torch import nn, einsum
 from einops import rearrange
 
-
+# 给矩阵扩大成head倍
 # inputs: x(b c h w) z(b m d)
 # output: z(b m d)
 class Mobile2Former(nn.Module):
