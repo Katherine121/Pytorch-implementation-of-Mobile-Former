@@ -1,3 +1,5 @@
+import os
+
 import torch
 import numpy as np
 from torch.optim import lr_scheduler, optimizer
@@ -11,12 +13,12 @@ import torch.nn as nn
 
 from torchvision.transforms import autoaugment
 # from torchvision.transforms import RandomErasing
-from model import MobileFormer
-from utils.config import config
+from model_generator import *
 from utils.utils import cutmix, cutmix_criterion, RandomErasing
 
 
 def check_accuracy(loader, model, device=None, dtype=None):
+    model.eval()
     total_correct = 0
     total_samples = 0
 
@@ -58,7 +60,6 @@ def train(
     model_save_dir = check_point_dir + 'mobile_former_151_100.pth'
 
     model = model.to(device)
-    model.load_state_dict(torch.load(model_save_dir))
 
     for e in range(epochs):
         model.train()
@@ -102,7 +103,6 @@ def train(
         total_loss /= t
         losses.append(total_loss)
 
-        model.eval()
         acc = check_accuracy(loader_val, model, device=device)
         accs.append(np.array(acc))
 
@@ -172,14 +172,13 @@ if __name__ == '__main__':
 
     print('###############################  Dataset loaded  ##############################')
 
+    os.environ["CUDA_VISIBLE_DEVICES"] = '1'
     device = torch.device('cuda')
-    cfg = config['mf151']
     args = {
         'loader_train': loader_train, 'loader_val': loader_val,
         'device': device, 'dtype': torch.float32,
-        # 'model': mobile_former_151(10, pre_train=True, state_dir='./check_point/mobile_former_151_100.pth'),
-        # 'model': model,
-        'model': MobileFormer(cfg),
+        'model': mobile_former_151(100, pre_train=True, state_dir='./check_point/mobile_former_151_100.pth'),
+        # 'model': MobileFormer(cfg),
         'criterion': nn.CrossEntropyLoss(),
         # 余弦退火
         'T_mult': 2,

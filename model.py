@@ -3,10 +3,11 @@ import torch
 import torch.nn as nn
 
 from torch.nn import init
+
+from model_generator import *
 from utils.mobile import Mobile, hswish, MobileDown
 from utils.former import Former
 from utils.bridge import Mobile2Former, Former2Mobile
-from utils.config import config_294, config_508, config_151
 
 from thop import profile
 from ptflops import get_model_complexity_info
@@ -102,18 +103,7 @@ class MobileFormer(nn.Module):
 
 
 if __name__ == "__main__":
-    # model = MobileFormer(config_151)
-    # inputs = torch.randn((3, 3, 224, 224))
-    # print(inputs.shape)
-    # for i in range(100):
-    #     t = time.time()
-    #     output = model(inputs)
-    #     print(time.time() - t)
-    # print("Total number of parameters in networks is {} M".format(sum(x.numel() for x in model.parameters()) / 1e6))
-    # output = model(inputs)
-    # print(output.shape)
-
-    model = MobileFormer(config_151)
+    model = mobile_former_151(100, pre_train=True, state_dir='./check_point/mobile_former_151_100.pth')
     inputs = torch.randn((1, 3, 224, 224))
     # 第一种方法
     flops, params = profile(model, (inputs,))
