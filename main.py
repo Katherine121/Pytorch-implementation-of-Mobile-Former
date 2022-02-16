@@ -170,6 +170,13 @@ if __name__ == '__main__':
     cifar_val = dset.CIFAR100('./dataset/', train=False, download=True, transform=transform)
     loader_val = DataLoader(cifar_val, batch_size=64, shuffle=True, pin_memory=True)
 
+    # imagenet_train = dset.ImageFolder(root='/datasets/ILSVRC2012/train/', transform=transform)
+    # loader_train = DataLoader(imagenet_train, batch_size=256, shuffle=True, num_workers=4)
+    # print(len(imagenet_train))
+    # imagenet_val = dset.ImageFolder(root='./val/', transform=transform)
+    # loader_val = DataLoader(imagenet_val, batch_size=128, shuffle=True, num_workers=4)
+    # print(len(imagenet_val))
+
     print('###############################  Dataset loaded  ##############################')
 
     os.environ["CUDA_VISIBLE_DEVICES"] = '1'
@@ -177,6 +184,7 @@ if __name__ == '__main__':
     args = {
         'loader_train': loader_train, 'loader_val': loader_val,
         'device': device, 'dtype': torch.float32,
+        # 'model': mobile_former_151(100),
         'model': mobile_former_151(100, pre_train=True, state_dir='./check_point/mobile_former_151_100.pth'),
         # 'model': MobileFormer(cfg),
         'criterion': nn.CrossEntropyLoss(),
