@@ -12,10 +12,11 @@ class MyDyRelu(nn.Module):
 
     def forward(self, inputs):
         x, relu_coefs = inputs
+        # 这里的c已经变成hid
         # BxCxHxW -> HxWxBxCx1
         x_perm = x.permute(2, 3, 0, 1).unsqueeze(-1)
-        # h w b c 1 -> h w b c k
-        # b*hid*2k: b*hid*k + b*hid*k 前k个是第一个超参，后k个是第二个超参
+        # h w b hid 1 -> h w b hid k
+        # b*hid*2k: 输入的x先点乘a（乘数值）后+b
         output = x_perm * relu_coefs[:, :, :self.k] + relu_coefs[:, :, self.k:]
         # 取k维度上最大的值，[0]为值，[1]为索引
         # HxWxBxCxk -> BxCxHxW
@@ -44,6 +45,7 @@ def mixup_criterion(criterion, pred, y_a, y_b, lam):
 
 
 def cutmix(input, target, beta):
+    # 随机获得小方块长宽概率
     lam = np.random.beta(beta, beta)
     b = input.size()[0]
     rand_index = torch.randperm(b).cuda()
@@ -144,3 +146,7 @@ class RandomErasing(object):
                     img[0, x1:x1 + h, y1:y1 + w] = self.mean[0]
                 return img
         return img
+
+# 每次都不一样
+if __name__ == "__main__":
+    print(np.random.beta(1,1))

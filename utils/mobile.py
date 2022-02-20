@@ -87,21 +87,24 @@ class Mobile(nn.Module):
 
     def forward(self, x, z):
         theta = self.get_relu_coefs(z)
+        # 第一个参数*1，左边+1，右边+0；第二个参数*0.5，+0
         # b 2*k*hid -> b hid 2*k                                  2*k            2*k
         # 前k个是第一个超参，后k个是第二个超参
         relu_coefs = theta.view(-1, self.hid, 2 * self.k) * self.lambdas + self.init_v
 
-        # b*hid*h*w, b*hid*2k
+        # b*hid*h*w, b*hid*2k两个都传入dyrelu
         out = self.bn1(self.conv1(x))
         out_ = [out, relu_coefs]
         out = self.act1(out_)
 
-        # b*hid*h*w, b*hid*2k
+        # b*hid*h*w, b*hid*2k两个都传入dyrelu
         out = self.bn2(self.conv2(out))
         out_ = [out, relu_coefs]
         out = self.act2(out_)
 
+        # 这里用的是普通relu，所以不加第一个token
         out = self.bn3(self.conv3(out))
+
         if self.se is not None:
             out = self.se(out)
         # 如果图片没有下采样，则残差连接，此模块没有下采样所以要残差连接
@@ -170,7 +173,7 @@ class MobileDown(nn.Module):
         # 前k个是第一个超参，后k个是第二个超参
         relu_coefs = theta.view(-1, self.hid, 2 * self.k) * self.lambdas + self.init_v
 
-        # b*hid*h*w, b*hid*2k
+        # b*hid*h*w, b*hid*2k两个都传入dyrelu
         out = self.dw_bn1(self.dw_conv1(x))
         out_ = [out, relu_coefs]
         out = self.dw_act1(out_)
@@ -178,11 +181,12 @@ class MobileDown(nn.Module):
         # 这里用的是普通relu，所以不加第一个token
         out = self.pw_act1(self.pw_bn1(self.pw_conv1(out)))
 
-        # b*hid*h*w, b*hid*2k
+        # b*hid*h*w, b*hid*2k两个都传入dyrelu
         out = self.dw_bn2(self.dw_conv2(out))
         out_ = [out, relu_coefs]
         out = self.dw_act2(out_)
 
+        # 这里用的是普通relu，所以不加第一个token
         out = self.pw_bn2(self.pw_conv2(out))
 
         if self.se is not None:

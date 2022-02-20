@@ -26,15 +26,25 @@ if __name__ == "__main__":
     total_samples = 0
 
     transform = transforms.Compose([
+        transforms.Resize(224),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    ])
+    transform_aug = transforms.Compose([
         transforms.Lambda(autoaugment.RandAugment(num_ops=2, magnitude=10)),
         transforms.Resize(224),
-        # RandomErasing(),
         transforms.ToTensor(),
+        # 接收tensor
+        transforms.RandomErasing(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
 
     cifar_val = torchvision.datasets.CIFAR100('./dataset/', train=False, download=True, transform=transform)
-    loader_val = DataLoader(cifar_val, batch_size=32, shuffle=True, pin_memory=True)
+    cifar_val_aug = torchvision.datasets.CIFAR100('./dataset/', train=False, download=True, transform=transform_aug)
+    cifar_val += cifar_val_aug
+
+    loader_val = DataLoader(cifar_val_aug, batch_size=32, shuffle=True, pin_memory=True)
+    print(len(cifar_val))
 
     with torch.no_grad():
         for x, y in loader_val:

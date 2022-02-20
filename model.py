@@ -92,7 +92,7 @@ class MobileFormer(nn.Module):
         for m in self.block:
             x, z = m([x, z])
         # x, z = self.block([x, z])
-        # 转成b个
+        # 转成b个平铺一维向量
         x = self.avg(self.bn(self.conv(x))).view(b, -1)
         # 取第一个token
         z = z[:, 0, :].view(b, -1)

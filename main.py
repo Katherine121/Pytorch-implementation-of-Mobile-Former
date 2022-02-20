@@ -74,7 +74,7 @@ def train(
             # 原x+混x->原y+混y
             outputs = model(inputs)
 
-            # 原y+混y和原t，混t求损失
+            # 原y+混y和原t，混t求损失：lam越大，小方块越小，被识别成真图片的概率越大
             # 2
             # loss = Mixup.mixup_criterion(criterion, scores, targets_a, targets_b, lam)
             loss = cutmix_criterion(criterion, outputs, targets_a, targets_b, lam)
@@ -156,19 +156,33 @@ if __name__ == '__main__':
     print('############################### Dataset loading ###############################')
 
     transform = transforms.Compose([
-        transforms.Lambda(autoaugment.RandAugment(num_ops=2, magnitude=10)),
         transforms.Resize(224),
-        # RandomErasing(),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
-    # 取出50000作为训练集
+    transform_aug = transforms.Compose([
+        transforms.Lambda(autoaugment.RandAugment(num_ops=2, magnitude=10)),
+        transforms.Resize(224),
+        transforms.ToTensor(),
+        # 接收tensor
+        transforms.RandomErasing(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    ])
+    # 50000无增强，50000有增强
     cifar_train = dset.CIFAR100('./dataset/', train=True, download=True, transform=transform)
-    loader_train = DataLoader(cifar_train, batch_size=128, shuffle=True, pin_memory=True)
+    cifar_train_aug = dset.CIFAR100('./dataset/', train=True, download=True, transform=transform_aug)
+    cifar_train += cifar_train_aug
 
-    # 10000作为测试集
+    loader_train = DataLoader(cifar_train, batch_size=128, shuffle=True, pin_memory=True)
+    print(len(cifar_train))
+
+    # 10000无增强，10000有增强
     cifar_val = dset.CIFAR100('./dataset/', train=False, download=True, transform=transform)
+    cifar_val_aug = dset.CIFAR100('./dataset/', train=False, download=True, transform=transform_aug)
+    cifar_val += cifar_val_aug
+
     loader_val = DataLoader(cifar_val, batch_size=64, shuffle=True, pin_memory=True)
+    print(len(cifar_val))
 
     # imagenet_train = dset.ImageFolder(root='/datasets/ILSVRC2012/train/', transform=transform)
     # loader_train = DataLoader(imagenet_train, batch_size=256, shuffle=True, num_workers=4)
