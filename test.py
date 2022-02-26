@@ -5,7 +5,7 @@ import torchvision
 from PIL import Image
 from torchvision import transforms
 from torch.utils.data import DataLoader
-from torchvision.transforms import autoaugment
+from utils import autoaugment
 
 from model_generator import *
 
@@ -16,9 +16,15 @@ from model_generator import *
 if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = '1'
     device = torch.device('cuda')
-    model = mobile_former_151(100, pre_train=True, state_dir='./check_point/mobile_former_151_100.pth')
+    model = mobile_former_151(100, pre_train=True, state_dir='./saved_model/mobile_former_151.pt')
     model = model.to(device)
     model.eval()
+
+    # trace_model = torch.jit.trace(model, torch.Tensor(1, 3, 224, 224).cuda())
+    # torch.jit.save(trace_model, './saved_model/mobile_former_151.jit.pt')
+
+    # trace_model = torch.jit.load('./saved_model/mobile_former_151.jit.pt', map_location=torch.device('cuda'))
+    # trace_model.eval()
 
     num_correct = 0
     num_samples = 0
@@ -31,7 +37,7 @@ if __name__ == "__main__":
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
     transform_aug = transforms.Compose([
-        transforms.Lambda(autoaugment.RandAugment(num_ops=2, magnitude=10)),
+        autoaugment.CIFAR10Policy(),
         transforms.Resize(224),
         transforms.ToTensor(),
         # 接收tensor
@@ -40,10 +46,10 @@ if __name__ == "__main__":
     ])
 
     cifar_val = torchvision.datasets.CIFAR100('./dataset/', train=False, download=True, transform=transform)
-    cifar_val_aug = torchvision.datasets.CIFAR100('./dataset/', train=False, download=True, transform=transform_aug)
-    cifar_val += cifar_val_aug
+    # cifar_val_aug = torchvision.datasets.CIFAR100('./dataset/', train=False, download=True, transform=transform_aug)
+    # cifar_val += cifar_val_aug
 
-    loader_val = DataLoader(cifar_val_aug, batch_size=32, shuffle=True, pin_memory=True)
+    loader_val = DataLoader(cifar_val, batch_size=32, shuffle=True, pin_memory=True)
     print(len(cifar_val))
 
     with torch.no_grad():

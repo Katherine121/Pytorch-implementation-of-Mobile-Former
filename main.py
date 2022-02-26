@@ -2,19 +2,16 @@ import os
 
 import torch
 import numpy as np
-from torch.optim import lr_scheduler, optimizer
-from torch.serialization import save
-from torchvision.transforms.transforms import Scale
 
 import torchvision.datasets as dset
 from torchvision import transforms
-from torch.utils.data import DataLoader, sampler
+from torch.utils.data import DataLoader
 import torch.nn as nn
 
-from torchvision.transforms import autoaugment
-# from torchvision.transforms import RandomErasing
+from utils import autoaugment
+
 from model_generator import *
-from utils.utils import cutmix, cutmix_criterion, RandomErasing
+from utils.utils import cutmix, cutmix_criterion
 
 
 def check_accuracy(loader, model, device=None, dtype=None):
@@ -57,7 +54,7 @@ def train(
 
     record_dir_acc = check_point_dir + 'record_val_acc.npy'
     record_dir_loss = check_point_dir + 'record_loss.npy'
-    model_save_dir = check_point_dir + 'mobile_former_151_100.pth'
+    model_save_dir = check_point_dir + 'mobile_former_151.pt'
 
     model = model.to(device)
 
@@ -109,10 +106,14 @@ def train(
         # 每个epoch记录一次测试集准确率和所有batch的平均训练损失
         print("Epoch:" + str(e) + ', Val acc = ' + str(acc) + ', average Loss = ' + str(total_loss))
         # 如果到了保存的epoch或者是训练完成的最后一个epoch
-        if (e % save_epochs == 0 and e != 0) or e == epochs - 1:
+        if (e % save_epochs == 0 and e != 0) or e == epochs - 1 or acc >= 0.765:
             np.save(record_dir_acc, np.array(accs))
             np.save(record_dir_loss, np.array(losses))
-            torch.save(model.state_dict(), model_save_dir)
+            # 保存模型结构
+            torch.save(model, model_save_dir)
+            # 保存rknn能转换的格式
+            trace_model = torch.jit.trace(model, torch.Tensor(1, 3, 224, 224).cuda())
+            torch.jit.save(trace_model, './saved_model/mobile_former_151.jit.pt')
     return acc
 
 
@@ -161,7 +162,7 @@ if __name__ == '__main__':
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
     transform_aug = transforms.Compose([
-        transforms.Lambda(autoaugment.RandAugment(num_ops=2, magnitude=10)),
+        autoaugment.CIFAR10Policy(),
         transforms.Resize(224),
         transforms.ToTensor(),
         # 接收tensor
@@ -199,12 +200,12 @@ if __name__ == '__main__':
         'loader_train': loader_train, 'loader_val': loader_val,
         'device': device, 'dtype': torch.float32,
         # 'model': mobile_former_151(100),
-        'model': mobile_former_151(100, pre_train=True, state_dir='./check_point/mobile_former_151_100.pth'),
+        'model': mobile_former_151(100, pre_train=True, state_dir='./saved_model/mobile_former_151.pt'),
         # 'model': MobileFormer(cfg),
         'criterion': nn.CrossEntropyLoss(),
         # 余弦退火
         'T_mult': 2,
         'epoch': 450, 'lr': 0.0009, 'wd': 0.10,
-        'check_point_dir': './check_point/', 'save_epochs': 3,
+        'check_point_dir': './saved_model/', 'save_epochs': 3,
     }
     run(**args)

@@ -30,7 +30,7 @@ def mobile_former_508(num_class, pre_train=False, state_dir=None):
     model = MobileFormer(cfg)
     if pre_train:
         print('Model loading...')
-        model.load_state_dict(torch.load(state_dir))
+        model = torch.load(state_dir)
         print('Model loaded.')
     else:
         print('Model initialized.')
@@ -68,7 +68,7 @@ def mobile_former_294(num_class, pre_train=False, state_dir=None):
     model = MobileFormer(cfg)
     if pre_train:
         print('Model loading...')
-        model.load_state_dict(torch.load(state_dir))
+        model = torch.load(state_dir)
         print('Model loaded.')
     else:
         print('Model initialized.')
@@ -105,7 +105,7 @@ def mobile_former_151(num_class, pre_train=False, state_dir=None):
     model = MobileFormer(cfg)
     if pre_train:
         print('Model loading...')
-        model.load_state_dict(torch.load(state_dir))
+        model = torch.load(state_dir)
         print('Model loaded.')
     else:
         print('Model initialized.')
