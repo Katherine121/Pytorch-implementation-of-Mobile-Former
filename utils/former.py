@@ -60,10 +60,19 @@ class Attention(nn.Module):
         qkv = self.to_qkv(x).chunk(3, dim=-1)  # b,6,192 -> b,6,64 + b,6,64 + b,6,64
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h),
                       qkv)  # q: b,6,64 -> b,2,6,32 ,2个head，每个head维度32
-        dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale  # b,2,6,32 @ b,2,6,32 -> b,2,6,6
+
+        # dots = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale  # b,2,6,32 @ b,2,6,32 -> b,2,6,6
+        q_u = q.unsqueeze(3)
+        k_u = k.unsqueeze(2)
+        dots = q_u * k_u
+        dots = torch.sum(dots, dim=-1)
+
         attn = self.attend(dots)
+
         # 每个token经过每个head的attention后的输出
-        out = einsum('b h i j, b h j d -> b h i d', attn, v)  # atten@v b,2,6,6 @ b,2,6,32 -> b,2,6,32
+        # out = einsum('b h i j, b h j d -> b h i d', attn, v)  # atten@v b,2,6,6 @ b,2,6,32 -> b,2,6,32
+        out = attn @ v
+
         out = rearrange(out, 'b h n d -> b n (h d)')  # 合并所有head的输出b,6,64
         return self.to_out(out)
 
