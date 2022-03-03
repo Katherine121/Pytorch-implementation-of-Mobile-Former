@@ -93,4 +93,3 @@ class MobileFormer(nn.Module):
         # 最后一个维度拼接
         out = torch.cat((x, z), -1)
         return self.head(out)
-        # return x, z
