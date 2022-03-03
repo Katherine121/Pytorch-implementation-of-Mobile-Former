@@ -1,5 +1,4 @@
-import torch
-from torch import nn, einsum
+from torch import nn
 from einops import rearrange
 
 # 给矩阵扩大成head倍

@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from utils.utils import MyDyRelu
-from torch.nn import init
 
 
 class hswish(nn.Module):
@@ -10,30 +9,30 @@ class hswish(nn.Module):
         out = x * F.relu6(x + 3, inplace=True) / 6
         return out
 
-# 没用到
-class hsigmoid(nn.Module):
-    def forward(self, x):
-        out = F.relu6(x + 3, inplace=True) / 6
-        return out
-
-# 没用到
-class SeModule(nn.Module):
-    def __init__(self, inp, reduction=4):
-        super(SeModule, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.se = nn.Sequential(
-            nn.Linear(inp, inp // reduction, bias=False),
-            nn.ReLU(inplace=True),
-            nn.Linear(inp // reduction, inp, bias=False),
-            hsigmoid()
-        )
-
-    def forward(self, x):
-        se = self.avg_pool(x)
-        b, c, _, _ = se.size()
-        se = se.view(b, c)
-        se = self.se(se).view(b, c, 1, 1)
-        return x * se.expand_as(x)
+# # 没用到
+# class hsigmoid(nn.Module):
+#     def forward(self, x):
+#         out = F.relu6(x + 3, inplace=True) / 6
+#         return out
+#
+# # 没用到
+# class SeModule(nn.Module):
+#     def __init__(self, inp, reduction=4):
+#         super(SeModule, self).__init__()
+#         self.avg_pool = nn.AdaptiveAvgPool2d(1)
+#         self.se = nn.Sequential(
+#             nn.Linear(inp, inp // reduction, bias=False),
+#             nn.ReLU(inplace=True),
+#             nn.Linear(inp // reduction, inp, bias=False),
+#             hsigmoid()
+#         )
+#
+#     def forward(self, x):
+#         se = self.avg_pool(x)
+#         b, c, _, _ = se.size()
+#         se = se.view(b, c)
+#         se = self.se(se).view(b, c, 1, 1)
+#         return x * se.expand_as(x)
 
 
 class Mobile(nn.Module):
