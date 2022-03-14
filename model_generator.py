@@ -1,5 +1,5 @@
 import torch
-from model import MobileFormer
+from mobile_former.model import MobileFormer
 
 
 from thop import profile
