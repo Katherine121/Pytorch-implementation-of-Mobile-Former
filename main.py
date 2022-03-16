@@ -28,6 +28,7 @@ def check_accuracy(loader, model, device=None, dtype=None):
             total_correct += num_correct
             total_samples += num_samples
 
+            # 每100个iteration打印一次测试集准确率
             if t % 100 == 0:
                 print('预测正确的图片数目' + str(num_correct))
                 print('总共的图片数目' + str(num_samples))
@@ -60,10 +61,9 @@ def train(
         for t, (x, y) in enumerate(loader_train):
             x = x.to(device=device, dtype=dtype, non_blocking=True)
             y = y.to(device=device, dtype=torch.long, non_blocking=True)
+
             # 原x+混x，原t，混t，原混比
             inputs, targets_a, targets_b, lam = cutmix(x, y, 1)
-            # inputs, targets_a, targets_b = map(Variable, (inputs,
-            #                                               targets_a, targets_b))
             # 原x+混x->原y+混y
             outputs = model(inputs)
 
@@ -77,18 +77,13 @@ def train(
             optimizer.zero_grad()
             # 3
             loss.backward()
-            # optimizer.param_groups： 是长度为2的list，其中的元素是2个字典
-            # optimizer.param_groups[0]： 长度为6的字典，包括[‘amsgrad', ‘params', ‘lr', ‘betas', ‘weight_decay', ‘eps']这6个参数；
-            # optimizer.param_groups[1]： 表示优化器的状态的一个字典
-            # for group in optimizer.param_groups:  # Adam-W
-            #     for param in group['params']:
-            #         # -weight decay*learning rate
-            #         param.data = param.data.add(param.data, alpha=-wd * group['lr'])
             # 4
             optimizer.step()
+
             if scheduler is not None:
                 scheduler.step()
-            # 200个iteration就计算一下测试集准确率
+
+            # 200个iteration打印一下训练集损失
             if t % 200 == 0:
                 print("Iteration:" + str(t) + ', average Loss = ' + str(loss_value))
 
@@ -108,6 +103,7 @@ def train(
         with open("./saved_model/testacc.txt", "a") as file2:
             file2.write(str(acc) + '\n')
         file2.close()
+
         # 如果到了保存的epoch或者是训练完成的最后一个epoch
         if (e % save_epochs == 0 and e != 0) or e == epochs - 1 or acc >= 0.765:
             np.save(record_dir_acc, np.array(accs))
@@ -185,8 +181,8 @@ if __name__ == '__main__':
 
     # 10000无增强，10000有增强
     cifar_val = dset.CIFAR100('./dataset/', train=False, download=True, transform=transform)
-    cifar_val_aug = dset.CIFAR100('./dataset/', train=False, download=True, transform=transform_aug)
-    cifar_val += cifar_val_aug
+    # cifar_val_aug = dset.CIFAR100('./dataset/', train=False, download=True, transform=transform_aug)
+    # cifar_val += cifar_val_aug
 
     loader_val = DataLoader(cifar_val, batch_size=64, shuffle=True, pin_memory=True)
     print(len(cifar_val))

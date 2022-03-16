@@ -3,17 +3,9 @@ import torch.nn as nn
 
 
 class Mobile(nn.Module):
-    def __init__(self, ks, inp, hid, out, se, stride, dim, reduction=4, k=2):
+    def __init__(self, ks, inp, hid, out, stride):
         super(Mobile, self).__init__()
-        self.hid = hid
-        self.k = k
-        self.fc1 = nn.Linear(dim, dim // reduction)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(dim // reduction, 2 * k * hid)
-        self.sigmoid = nn.Sigmoid()
-
         self.stride = stride
-        self.se = se
 
         self.conv1 = nn.Conv2d(inp, hid, kernel_size=1, stride=1, padding=0, bias=False)
         self.bn1 = nn.BatchNorm2d(hid)
@@ -45,25 +37,15 @@ class Mobile(nn.Module):
 
         out = self.bn3(self.conv3(out))
 
-        if self.se is not None:
-            out = self.se(out)
         # 如果图片没有下采样，则残差连接，此模块没有下采样所以要残差连接
         out = out + self.shortcut(x) if self.stride == 1 else out
         return out
 
 
 class MobileDown(nn.Module):
-    def __init__(self, ks, inp, hid, out, se, stride, dim, reduction=4, k=2):
+    def __init__(self, ks, inp, hid, out, stride):
         super(MobileDown, self).__init__()
-        self.dim = dim
-        self.hid, self.out = hid, out
-        self.k = k
-        self.fc1 = nn.Linear(dim, dim // reduction)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(dim // reduction, 2 * k * hid)
-        self.sigmoid = nn.Sigmoid()
         self.stride = stride
-        self.se = se
 
         self.dw_conv1 = nn.Conv2d(inp, hid, kernel_size=ks, stride=stride,
                                   padding=ks // 2, groups=inp, bias=False)
@@ -102,8 +84,6 @@ class MobileDown(nn.Module):
 
         out = self.pw_bn2(self.pw_conv2(out))
 
-        if self.se is not None:
-            out = self.se(out)
         # 如果图片没有下采样，则残差连接，此模块有下采样所以不残差连接
         out = out + self.shortcut(x) if self.stride == 1 else out
         return out

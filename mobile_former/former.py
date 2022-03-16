@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from torch import nn
-import torch.nn.functional as F
 
 
 class PreNorm(nn.Module):
@@ -10,59 +9,58 @@ class PreNorm(nn.Module):
         self.norm = nn.LayerNorm(dim)
         self.fn = fn
 
-    def forward(self, x, **kwargs):
-        return self.fn(self.norm(x), **kwargs)
+    def forward(self, x):
+        return self.fn(self.norm(x))
 
 
 class GELU(nn.Module):
     def __init__(self):
         super(GELU, self).__init__()
 
-    def forward(self, x):
-        return 0.5*x*(1.0+F.tanh(np.sqrt(2.0/np.pi)*(x+0.044715*x*x*x)))
+    def forward(self, z):
+        return 0.5*z*(1.0+torch.tanh(np.sqrt(2.0/np.pi)*(z+0.044715*z*z*z)))
 
 
 class FeedForward(nn.Module):
-    def __init__(self, dim, hidden_dim, dropout=0.3):
+    def __init__(self, dim, mlp_dim, dropout=0.3):
         super(FeedForward, self).__init__()
-        self.net = nn.Sequential(
-            nn.Linear(dim, hidden_dim),
-            # 高斯误差线性单元激活函数，常用于BERT
-            GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, dim),
-            nn.Dropout(dropout)
-        )
+        self.fc1 = nn.Linear(dim, mlp_dim)
+        # 高斯误差线性单元激活函数，常用于BERT
+        self.gelu = GELU()
+        self.drop1 = nn.Dropout(dropout)
+        self.fc2 = nn.Linear(mlp_dim, dim)
+        self.drop2 = nn.Dropout(dropout)
 
-    def forward(self, x):
-        return self.net(x)
+    def forward(self, z):
+        z = self.fc1(z)
+        z = self.gelu(z)
+        z = self.drop1(z)
+        z = self.fc2(z)
+        z = self.drop2(z)
+        return z
 
 
 class Attention(nn.Module):
     def __init__(self, dim=192, heads=2, dim_head=32, dropout=0.3):
         super(Attention, self).__init__()
         inner_dim = heads * dim_head  # head数量和每个head的维度
-        # 如果不是多头，就没必要合并了
-        project_out = not (heads == 1 and dim_head == dim)
 
         self.heads = heads
-        self.scale = dim_head ** -0.5
-
-        self.attend = nn.Softmax(dim=-1)
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias=False)
+        self.scale = dim_head ** -0.5
+        self.attend = nn.Softmax(dim=-1)
 
-        # 如果不是多头，就没必要合并了
-        self.to_out = nn.Sequential(
-            nn.Linear(inner_dim, dim),
-            nn.Dropout(dropout)
-        ) if project_out else nn.Identity()
+        self.to_out = nn.Linear(inner_dim, dim)
+        self.drop = nn.Dropout(dropout)
 
-    def forward(self, z):  # b,6,192
-        # batch, num, dimension; head
+    def forward(self, z):
+        # batch, num
         b = z.shape[0]
         m = z.shape[1]
         # 先经过全连接层获得qkv，然后分割
-        qkv = self.to_qkv(z).chunk(3, dim=-1)  # b,6,192 -> b,6,64 + b,6,64 + b,6,64
+        # b,6,192 -> b,6,64 + b,6,64 + b,6,64
+        qkv = self.to_qkv(z).chunk(3, dim=-1)
+        # b,6,64 -> b,6,2,32 -> b,2,6,32
         q = qkv[0].view(b, m, self.heads, -1)
         q = q.transpose(1, 2)
         k = qkv[1].view(b, m, self.heads, -1)
@@ -70,18 +68,24 @@ class Attention(nn.Module):
         v = qkv[2].view(b, m, self.heads, -1)
         v = v.transpose(1, 2)
 
+        # b,2,6,32 @ b,2,32,6 -> b,2,6,6
         dots = q @ k.transpose(2,3) * self.scale
         attn = self.attend(dots)
         # 每个token经过每个head的attention后的输出
+        # b,2,6,6 @ b,2,6,32 -> b,2,6,32
         out = attn @ v
 
+        # b,2,6,32 -> b,6,64
         out = out.transpose(1, 2)
         out = out.reshape(b, m, -1)
-        return self.to_out(out)
+        # b,6,64 -> b,6,192
+        out = self.to_out(out)
+        out = self.drop(out)
+        return out
 
 
-# inputs: n m d
-# output: n m d
+# inputs: b m d
+# output: b m d
 class Former(nn.Module):
     def __init__(self, dim, depth=1, heads=2, dim_head=32, dropout=0.3):
         super(Former, self).__init__()
