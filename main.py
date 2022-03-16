@@ -1,17 +1,13 @@
 import os
-
-import torch
-import numpy as np
-
+import torch.nn as nn
 import torchvision.datasets as dset
 from torchvision import transforms
 from torch.utils.data import DataLoader
-import torch.nn as nn
-
-from utils import autoaugment
+import numpy as np
 
 from model_generator import *
-from utils.utils import cutmix, cutmix_criterion
+from process_data import autoaugment
+from process_data.utils import cutmix, cutmix_criterion
 
 
 def check_accuracy(loader, model, device=None, dtype=None):
@@ -32,6 +28,7 @@ def check_accuracy(loader, model, device=None, dtype=None):
             total_correct += num_correct
             total_samples += num_samples
 
+            # 每100个iteration打印一次测试集准确率
             if t % 100 == 0:
                 print('预测正确的图片数目' + str(num_correct))
                 print('总共的图片数目' + str(num_samples))
@@ -64,16 +61,14 @@ def train(
         for t, (x, y) in enumerate(loader_train):
             x = x.to(device=device, dtype=dtype, non_blocking=True)
             y = y.to(device=device, dtype=torch.long, non_blocking=True)
+
             # 原x+混x，原t，混t，原混比
             inputs, targets_a, targets_b, lam = cutmix(x, y, 1)
-            # inputs, targets_a, targets_b = map(Variable, (inputs,
-            #                                               targets_a, targets_b))
             # 原x+混x->原y+混y
             outputs = model(inputs)
 
             # 原y+混y和原t，混t求损失：lam越大，小方块越小，被识别成真图片的概率越大
             # 2
-            # loss = Mixup.mixup_criterion(criterion, scores, targets_a, targets_b, lam)
             loss = cutmix_criterion(criterion, outputs, targets_a, targets_b, lam)
             loss_value = np.array(loss.item())
             total_loss += loss_value
@@ -82,18 +77,13 @@ def train(
             optimizer.zero_grad()
             # 3
             loss.backward()
-            # optimizer.param_groups： 是长度为2的list，其中的元素是2个字典
-            # optimizer.param_groups[0]： 长度为6的字典，包括[‘amsgrad', ‘params', ‘lr', ‘betas', ‘weight_decay', ‘eps']这6个参数；
-            # optimizer.param_groups[1]： 表示优化器的状态的一个字典
-            # for group in optimizer.param_groups:  # Adam-W
-            #     for param in group['params']:
-            #         # -weight decay*learning rate
-            #         param.data = param.data.add(param.data, alpha=-wd * group['lr'])
             # 4
             optimizer.step()
+
             if scheduler is not None:
                 scheduler.step()
-            # 200个iteration就计算一下测试集准确率
+
+            # 200个iteration打印一下训练集损失
             if t % 200 == 0:
                 print("Iteration:" + str(t) + ', average Loss = ' + str(loss_value))
 
@@ -105,15 +95,27 @@ def train(
 
         # 每个epoch记录一次测试集准确率和所有batch的平均训练损失
         print("Epoch:" + str(e) + ', Val acc = ' + str(acc) + ', average Loss = ' + str(total_loss))
+        # 将每个epoch的平均损失写入文件
+        with open("./saved_model/avgloss.txt", "a") as file1:
+            file1.write(str(total_loss) + '\n')
+        file1.close()
+        # 将每个epoch的测试集准确率写入文件
+        with open("./saved_model/testacc.txt", "a") as file2:
+            file2.write(str(acc) + '\n')
+        file2.close()
+
         # 如果到了保存的epoch或者是训练完成的最后一个epoch
         if (e % save_epochs == 0 and e != 0) or e == epochs - 1 or acc >= 0.765:
             np.save(record_dir_acc, np.array(accs))
             np.save(record_dir_loss, np.array(losses))
+            model.eval()
+            # 保存模型参数
+            torch.save(model.state_dict(), './saved_model/mobile_former_151.pth')
             # 保存模型结构
-            torch.save(model, model_save_dir)
-            # 保存rknn能转换的格式
+            torch.save(model, './saved_model/mobile_former_151.pt')
+            # 保存jit模型
             trace_model = torch.jit.trace(model, torch.Tensor(1, 3, 224, 224).cuda())
-            torch.jit.save(trace_model, './saved_model/mobile_former_151.jit.pt')
+            torch.jit.save(trace_model, './saved_model/mobile_former_jit.pt')
     return acc
 
 
@@ -179,8 +181,8 @@ if __name__ == '__main__':
 
     # 10000无增强，10000有增强
     cifar_val = dset.CIFAR100('./dataset/', train=False, download=True, transform=transform)
-    cifar_val_aug = dset.CIFAR100('./dataset/', train=False, download=True, transform=transform_aug)
-    cifar_val += cifar_val_aug
+    # cifar_val_aug = dset.CIFAR100('./dataset/', train=False, download=True, transform=transform_aug)
+    # cifar_val += cifar_val_aug
 
     loader_val = DataLoader(cifar_val, batch_size=64, shuffle=True, pin_memory=True)
     print(len(cifar_val))
@@ -199,13 +201,12 @@ if __name__ == '__main__':
     args = {
         'loader_train': loader_train, 'loader_val': loader_val,
         'device': device, 'dtype': torch.float32,
-        # 'model': mobile_former_151(100),
-        'model': mobile_former_151(100, pre_train=True, state_dir='./saved_model/mobile_former_151.pt'),
-        # 'model': MobileFormer(cfg),
+        'model': mobile_former_151(100),
+        # 'model': mobile_former_151(100, pre_train=True, state_dir='./sparsity_model/mobile_former_151_s.pt'),
         'criterion': nn.CrossEntropyLoss(),
         # 余弦退火
         'T_mult': 2,
-        'epoch': 450, 'lr': 0.0009, 'wd': 0.10,
+        'epoch': 300, 'lr': 0.0009, 'wd': 0.10,
         'check_point_dir': './saved_model/', 'save_epochs': 3,
     }
     run(**args)
