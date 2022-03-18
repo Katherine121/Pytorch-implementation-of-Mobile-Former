@@ -1,12 +1,16 @@
+import torch
+torch.set_printoptions(profile="full")
 from model_generator import *
 
+# python -m onnxsim rk3399_model/mobile_former_151.onnx rk3399_model/mobile_former_sim.onnx
 if __name__ == '__main__':
     model = mobile_former_151(100, pre_train=True, state_dir="./saved_model/mobile_former_151.pt")
     model.cpu()
     model.eval()
 
-    # 使用onnxoptimizer优化模型
-    # model = onnxoptimizer.optimize(model)
+    # for name, param in model.named_parameters():
+    #     if "token" in name:
+    #         print(param)
 
     x = torch.Tensor(1,3,224,224)
 
@@ -19,4 +23,6 @@ if __name__ == '__main__':
                       input_names=["input"],  # 输入名
                       output_names=["output"],  # 输出名
                       opset_version=11,
+                      # dynamic_axes={"input": {0: "batch_size"},  # 批处理变量
+                      #               "output": {0: "batch_size"}},
                       )

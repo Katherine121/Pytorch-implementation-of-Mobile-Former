@@ -12,10 +12,15 @@ from model_generator import *
 
 torch.set_printoptions(profile="full")
 
+# from torchstat import stat
+# if __name__ == "__main__":
+#     model = torchvision.models.
+#     stat(model, (3, 224, 224))
 
 if __name__ == "__main__":
     # 加载pt模型
     model = mobile_former_151(100, pre_train=True, state_dir="./saved_model/mobile_former_151.pt")
+    model.cuda()
     model.eval()
 
     num_correct = 0
