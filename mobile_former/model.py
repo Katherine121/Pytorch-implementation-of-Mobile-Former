@@ -96,7 +96,7 @@ class MobileFormer(nn.Module):
         x = self.bneck(self.stem(x))
 
         for m in self.block:
-            x, z = m([x, z])
+            x, z = m(x, z)
 
         # 转成b个平铺一维向量
         x = self.avg(self.bn(self.conv(x))).view(b, -1)

@@ -196,7 +196,7 @@ if __name__ == '__main__':
 
     print('###############################  Dataset loaded  ##############################')
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
     device = torch.device('cuda')
     args = {
         'loader_train': loader_train, 'loader_val': loader_val,
