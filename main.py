@@ -96,11 +96,11 @@ def train(
         # 每个epoch记录一次测试集准确率和所有batch的平均训练损失
         print("Epoch:" + str(e) + ', Val acc = ' + str(acc) + ', average Loss = ' + str(total_loss))
         # 将每个epoch的平均损失写入文件
-        with open("./saved_model/avgloss.txt", "a") as file1:
+        with open("./bridge_ablation/avgloss.txt", "a") as file1:
             file1.write(str(total_loss) + '\n')
         file1.close()
         # 将每个epoch的测试集准确率写入文件
-        with open("./saved_model/testacc.txt", "a") as file2:
+        with open("./bridge_ablation/testacc.txt", "a") as file2:
             file2.write(str(acc) + '\n')
         file2.close()
 
@@ -110,12 +110,12 @@ def train(
             np.save(record_dir_loss, np.array(losses))
             model.eval()
             # 保存模型参数
-            torch.save(model.state_dict(), './saved_model/mobile_former_151.pth')
+            torch.save(model.state_dict(), './bridge_ablation/mobile_former_151.pth')
             # 保存模型结构
-            torch.save(model, './saved_model/mobile_former_151.pt')
+            torch.save(model, './bridge_ablation/mobile_former_151.pt')
             # 保存jit模型
             trace_model = torch.jit.trace(model, torch.Tensor(1, 3, 224, 224).cuda())
-            torch.jit.save(trace_model, './saved_model/mobile_former_jit.pt')
+            torch.jit.save(trace_model, './bridge_ablation/mobile_former_jit.pt')
     return acc
 
 
@@ -196,7 +196,7 @@ if __name__ == '__main__':
 
     print('###############################  Dataset loaded  ##############################')
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
     device = torch.device('cuda')
     args = {
         'loader_train': loader_train, 'loader_val': loader_val,
@@ -207,6 +207,6 @@ if __name__ == '__main__':
         # 余弦退火
         'T_mult': 2,
         'epoch': 300, 'lr': 0.0009, 'wd': 0.10,
-        'check_point_dir': './saved_model/', 'save_epochs': 3,
+        'check_point_dir': './bridge_ablation/', 'save_epochs': 3,
     }
     run(**args)
