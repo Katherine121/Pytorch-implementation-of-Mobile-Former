@@ -10,6 +10,74 @@ from process_data import autoaugment
 from process_data.utils import cutmix, cutmix_criterion
 
 
+def prune_loss(model):
+    sparsity_loss = 0
+
+    for name, param in model.named_parameters():
+        # block.0.former.layers.0.0.fn.to_qkv.weight:torch.Size([192, 192])
+        # column
+        if 'fn.to_qkv' in name and 'weight' in name:
+            qkv = param.data.chunk(3, dim=-1)
+            q, k, v = qkv[0], qkv[1], qkv[2]
+            # 在列上计算L2正则化
+            q_norm = q.norm(2, dim=-1)
+            k_norm = k.norm(2, dim=-1)
+            v_norm = v.norm(2, dim=-1)
+            # 在行上求和
+            q1 = q_norm.sum(dim=-1)
+            k1 = k_norm.sum(dim=-1)
+            v1 = v_norm.sum(dim=-1)
+            # 求结构化稀疏度正则项
+            q_s = torch.div(q1*q1, (q*q).sum(dim=-1).sum(dim=-1))
+            k_s = torch.div(k1*k1, (k*k).sum(dim=-1).sum(dim=-1))
+            v_s = torch.div(v1*v1, (v*v).sum(dim=-1).sum(dim=-1))
+            # 添加损失
+            sparsity_loss += q_s.sum(dim=-1)
+            sparsity_loss += k_s.sum(dim=-1)
+            sparsity_loss += v_s.sum(dim=-1)
+
+        # block.0.former.layers.0.0.fn.to_out.0.weight:torch.Size([192, 64])
+        # row
+        if 'fn.to_out' in name and 'weight' in name:
+            # 在行上计算L2正则化
+            out = param.data
+            out_norm = out.norm(2, dim=-2)
+            # 在列上求和
+            out1 = out_norm.sum(dim=-1)
+            # 求结构化稀疏度正则项
+            out_s = torch.div(out1*out1, (out*out).sum(dim=-1).sum(dim=-1))
+            # 添加损失
+            sparsity_loss += out_s.sum(dim=-1)
+
+        # block.0.former.layers.0.1.fn.net.0.weight:torch.Size([384, 192])
+        # column
+        if 'fn.net.0' in name and 'weight' in name:
+            w1 = param.data
+            # 在列上计算L2正则化
+            w1_norm = w1.norm(2, dim=-1)
+            # 在行上求和
+            w11 = w1_norm.sum(dim=-1)
+            # 求结构化稀疏度正则项
+            w1_s = torch.div(w11*w11, (w1*w1).sum(dim=-1).sum(dim=-1))
+            # 添加损失
+            sparsity_loss += w1_s.sum(dim=-1)
+
+        # block.0.former.layers.0.1.fn.net.3.weight:torch.Size([192, 384])
+        # row
+        if 'fn.net.3' in name and 'weight' in name:
+            # 在行上计算L2正则化
+            w2 = param.data
+            w2_norm = w2.norm(2, dim=-2)
+            # 在列上求和
+            w21 = w2_norm.sum(dim=-1)
+            # 求结构化稀疏度正则项
+            w2_s = torch.div(w21*w21, (w2*w2).sum(dim=-1).sum(dim=-1))
+            # 添加损失
+            sparsity_loss += w2_s.sum(dim=-1)
+
+    return sparsity_loss
+
+
 def check_accuracy(loader, model, device=None, dtype=None):
     model.eval()
     total_correct = 0
@@ -69,7 +137,7 @@ def train(
 
             # 原y+混y和原t，混t求损失：lam越大，小方块越小，被识别成真图片的概率越大
             # 2
-            loss = cutmix_criterion(criterion, outputs, targets_a, targets_b, lam)
+            loss = cutmix_criterion(criterion, outputs, targets_a, targets_b, lam) + prune_loss(model)
             loss_value = np.array(loss.item())
             total_loss += loss_value
 
@@ -96,26 +164,27 @@ def train(
         # 每个epoch记录一次测试集准确率和所有batch的平均训练损失
         print("Epoch:" + str(e) + ', Val acc = ' + str(acc) + ', average Loss = ' + str(total_loss))
         # 将每个epoch的平均损失写入文件
-        with open("./bridge_ablation/avgloss.txt", "a") as file1:
+        with open("./tune_model/avgloss.txt", "a") as file1:
             file1.write(str(total_loss) + '\n')
         file1.close()
         # 将每个epoch的测试集准确率写入文件
-        with open("./bridge_ablation/testacc.txt", "a") as file2:
+        with open("./tune_model/testacc.txt", "a") as file2:
             file2.write(str(acc) + '\n')
         file2.close()
 
         # 如果到了保存的epoch或者是训练完成的最后一个epoch
-        if (e % save_epochs == 0 and e != 0) or e == epochs - 1 or acc >= 0.765:
+        # if (e % save_epochs == 0 and e != 0) or e == epochs - 1 or acc >= 0.765:
+        if acc > 0.7829:
             np.save(record_dir_acc, np.array(accs))
             np.save(record_dir_loss, np.array(losses))
             model.eval()
             # 保存模型参数
-            torch.save(model.state_dict(), './bridge_ablation/mobile_former_151.pth')
+            torch.save(model.state_dict(), './tune_model/mobile_former_151.pth')
             # 保存模型结构
-            torch.save(model, './bridge_ablation/mobile_former_151.pt')
+            torch.save(model, './tune_model/mobile_former_151.pt')
             # 保存jit模型
             trace_model = torch.jit.trace(model, torch.Tensor(1, 3, 224, 224).cuda())
-            torch.jit.save(trace_model, './bridge_ablation/mobile_former_jit.pt')
+            torch.jit.save(trace_model, './tune_model/mobile_former_jit.pt')
     return acc
 
 
@@ -196,17 +265,17 @@ if __name__ == '__main__':
 
     print('###############################  Dataset loaded  ##############################')
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+    os.environ["CUDA_VISIBLE_DEVICES"] = '1'
     device = torch.device('cuda')
     args = {
         'loader_train': loader_train, 'loader_val': loader_val,
         'device': device, 'dtype': torch.float32,
-        'model': mobile_former_151(100),
-        # 'model': mobile_former_151(100, pre_train=True, state_dir='./bridge_ablation/mobile_former_151.pt'),
+        # 'model': mobile_former_151(100),
+        'model': mobile_former_151(100, pre_train=True, state_dir='./bridge_ablation/mobile_former_151.pt'),
         'criterion': nn.CrossEntropyLoss(),
         # 余弦退火
         'T_mult': 2,
         'epoch': 300, 'lr': 0.0009, 'wd': 0.10,
-        'check_point_dir': './bridge_ablation/', 'save_epochs': 3,
+        'check_point_dir': './tune_model/', 'save_epochs': 3,
     }
     run(**args)

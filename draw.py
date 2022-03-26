@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 if __name__ == "__main__":
-    fp1 = open('./bridge_ablation/avgloss.txt', 'r')
+    fp1 = open('./tune_model/avgloss.txt', 'r')
     total_loss = []
     for loss in fp1:
         loss = loss.strip('\n')  # 将\n去掉
@@ -13,7 +13,7 @@ if __name__ == "__main__":
     total_loss = np.array(total_loss, dtype=float)  # 将其转换成numpy的数组，并定义数据类型为float
     # print(total_loss)
 
-    fp2 = open('./bridge_ablation/testacc.txt', 'r')
+    fp2 = open('./tune_model/testacc.txt', 'r')
     total_acc = []
     for acc in fp2:
         acc = acc.strip('\n')  # 将\n去掉
