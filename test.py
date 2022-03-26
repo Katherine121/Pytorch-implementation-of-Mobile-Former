@@ -12,10 +12,6 @@ from model_generator import *
 
 torch.set_printoptions(profile="full")
 
-# from torchstat import stat
-# if __name__ == "__main__":
-#     model = torchvision.models.
-#     stat(model, (3, 224, 224))
 
 if __name__ == "__main__":
     # 加载pt模型
@@ -46,7 +42,7 @@ if __name__ == "__main__":
     # cifar_val_aug = torchvision.datasets.CIFAR100('./dataset/', train=False, download=True, transform=transform_aug)
     # cifar_val += cifar_val_aug
 
-    loader_val = DataLoader(cifar_val, batch_size=16, shuffle=True, pin_memory=True)
+    loader_val = DataLoader(cifar_val, batch_size=64, shuffle=True, pin_memory=True)
     print(len(cifar_val))
 
     os.environ["CUDA_VISIBLE_DEVICES"] = '1'

@@ -4,7 +4,7 @@ from model_generator import *
 
 # python -m onnxsim rk3399_model/mobile_former_151.onnx rk3399_model/mobile_former_sim.onnx
 if __name__ == '__main__':
-    model = mobile_former_151(100, pre_train=True, state_dir="./saved_model/mobile_former_151.pt")
+    model = mobile_former_151(100, pre_train=True, state_dir="./bridge_ablation/mobile_former_151.pt")
     model.cpu()
     model.eval()
 
@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     x = torch.Tensor(1,3,224,224)
 
-    export_onnx_file = "./rk3399_model/mobile_former_151.onnx"  # 目的ONNX文件名
+    export_onnx_file = "./bridge_ablation/mobile_former_151.onnx"  # 目的ONNX文件名
     torch.onnx.export(model,
                       x,
                       export_onnx_file,

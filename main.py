@@ -202,7 +202,7 @@ if __name__ == '__main__':
         'loader_train': loader_train, 'loader_val': loader_val,
         'device': device, 'dtype': torch.float32,
         'model': mobile_former_151(100),
-        # 'model': mobile_former_151(100, pre_train=True, state_dir='./sparsity_model/mobile_former_151_s.pt'),
+        # 'model': mobile_former_151(100, pre_train=True, state_dir='./bridge_ablation/mobile_former_151.pt'),
         'criterion': nn.CrossEntropyLoss(),
         # 余弦退火
         'T_mult': 2,

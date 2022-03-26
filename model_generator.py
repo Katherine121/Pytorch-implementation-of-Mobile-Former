@@ -119,8 +119,8 @@ def mobile_former_151(num_class, pre_train=False, state_dir=None):
 
 
 if __name__ == "__main__":
-    model = mobile_former_151(100, pre_train=True, state_dir='./check_point/mobile_former_151_100.pth')
-    inputs = torch.randn((1, 3, 224, 224))
+    model = mobile_former_151(100, pre_train=True, state_dir='./bridge_ablation/mobile_former_151.pt')
+    inputs = torch.randn((1, 3, 224, 224)).cuda()
     # 第一种方法
     flops, params = profile(model, (inputs,))
     print('flops: ', flops, 'params: ', params)
