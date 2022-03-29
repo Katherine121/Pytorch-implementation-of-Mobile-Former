@@ -122,7 +122,7 @@ def train(
             torch.save(model, './dist_model/mobile_former_151.pt')
             # 保存jit模型
             trace_model = torch.jit.trace(model, torch.Tensor(1, 3, 224, 224).cuda())
-            torch.jit.save(trace_model, './dist_model/mobile_former_151.pt')
+            torch.jit.save(trace_model, './dist_model/mobile_former_jit.pt')
     return acc
 
 
