@@ -15,7 +15,7 @@ torch.set_printoptions(profile="full")
 
 if __name__ == "__main__":
     # 加载pt模型
-    model = mobile_former_151(100, pre_train=True, state_dir="./bridge_ablation/mobile_former_151.pt")
+    model = mobile_former_151(100, pre_train=True, state_dir="./dist_model/mobile_former_151.pt")
     model.cuda()
     model.eval()
 

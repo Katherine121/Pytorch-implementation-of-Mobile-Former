@@ -1,13 +1,16 @@
 import os
+
+import torch
 import torch.nn as nn
 import torchvision.datasets as dset
+import torchvision.models
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import numpy as np
 
 from model_generator import *
 from process_data import autoaugment
-from process_data.utils import cutmix, cutmix_criterion
+from process_data.utils import cutmix, cutmix_criterion, distill_criterion
 
 
 def check_accuracy(loader, model, device=None, dtype=None):
@@ -41,19 +44,21 @@ def train(
         loader_train=None, loader_val=None,
         device=None, dtype=None,
         model=None,
+        teacher=None,
         criterion=nn.CrossEntropyLoss(),
         scheduler=None, optimizer=None,
-        epochs=450, check_point_dir=None, save_epochs=None
+        epochs=300,
+        save_epochs=None
 ):
     acc = 0
     accs = [0]
     losses = []
 
-    record_dir_acc = check_point_dir + 'record_val_acc.npy'
-    record_dir_loss = check_point_dir + 'record_loss.npy'
-    model_save_dir = check_point_dir + 'mobile_former_151.pt'
-
     model = model.to(device)
+    teacher = teacher.to(device)
+    teacher.eval()
+    for param in teacher.parameters():
+        param.requires_grad = False
 
     for e in range(epochs):
         model.train()
@@ -66,10 +71,11 @@ def train(
             inputs, targets_a, targets_b, lam = cutmix(x, y, 1)
             # 原x+混x->原y+混y
             outputs = model(inputs)
+            soft_out = teacher(inputs)
 
             # 原y+混y和原t，混t求损失：lam越大，小方块越小，被识别成真图片的概率越大
             # 2
-            loss = cutmix_criterion(criterion, outputs, targets_a, targets_b, lam)
+            loss = distill_criterion(criterion, outputs, targets_a, targets_b, lam, soft_out)
             loss_value = np.array(loss.item())
             total_loss += loss_value
 
@@ -96,26 +102,27 @@ def train(
         # 每个epoch记录一次测试集准确率和所有batch的平均训练损失
         print("Epoch:" + str(e) + ', Val acc = ' + str(acc) + ', average Loss = ' + str(total_loss))
         # 将每个epoch的平均损失写入文件
-        with open("./bridge_ablation/avgloss.txt", "a") as file1:
+        with open("./dist_model/avgloss.txt", "a") as file1:
             file1.write(str(total_loss) + '\n')
         file1.close()
         # 将每个epoch的测试集准确率写入文件
-        with open("./bridge_ablation/testacc.txt", "a") as file2:
+        with open("./dist_model/testacc.txt", "a") as file2:
             file2.write(str(acc) + '\n')
         file2.close()
 
         # 如果到了保存的epoch或者是训练完成的最后一个epoch
-        if (e % save_epochs == 0 and e != 0) or e == epochs - 1 or acc >= 0.765:
-            np.save(record_dir_acc, np.array(accs))
-            np.save(record_dir_loss, np.array(losses))
+        # if (e % save_epochs == 0 and e != 0) or e == epochs - 1 or acc >= 0.765:
+        if acc > 0.7848:
+            np.save('./dist_model/record_val_acc.npy', np.array(accs))
+            np.save('./dist_model/record_loss.npy', np.array(losses))
             model.eval()
             # 保存模型参数
-            torch.save(model.state_dict(), './bridge_ablation/mobile_former_151.pth')
+            torch.save(model.state_dict(), './dist_model/mobile_former_151.pth')
             # 保存模型结构
-            torch.save(model, './bridge_ablation/mobile_former_151.pt')
+            torch.save(model, './dist_model/mobile_former_151.pt')
             # 保存jit模型
             trace_model = torch.jit.trace(model, torch.Tensor(1, 3, 224, 224).cuda())
-            torch.jit.save(trace_model, './bridge_ablation/mobile_former_jit.pt')
+            torch.jit.save(trace_model, './dist_model/mobile_former_151.pt')
     return acc
 
 
@@ -123,11 +130,11 @@ def run(
         loader_train=None, loader_val=None,
         device=None, dtype=None,
         model=None,
+        teacher=None,
         criterion=nn.CrossEntropyLoss(),
         T_mult=2,
-        epoch=450, lr=0.0009, wd=0.10,
-        check_point_dir=None, save_epochs=3,
-
+        epoch=300, lr=0.0009, wd=0.10,
+        save_epochs=3,
 ):
     epochs = epoch
     model_ = model
@@ -142,17 +149,18 @@ def run(
         'loader_train': loader_train, 'loader_val': loader_val,
         'device': device, 'dtype': dtype,
         'model': model_,
+        'teacher': teacher,
         'criterion': criterion,
         'scheduler': lr_scheduler, 'optimizer': optimizer,
         'epochs': epochs,
-        'check_point_dir': check_point_dir, 'save_epochs': save_epochs,
+        'save_epochs': save_epochs,
     }
     print('#############################     Training...     #############################')
     val_acc = train(**args)
     # 最后一个epoch的最后一次测试集准确率
     print('Training for ' + str(epochs) + ' epochs, learning rate: ', learning_rate, ', weight decay: ',
           weight_decay, ', Val acc: ', val_acc)
-    print('Done, model saved in ', check_point_dir)
+    print('Done, model saved')
 
 
 if __name__ == '__main__':
@@ -196,17 +204,22 @@ if __name__ == '__main__':
 
     print('###############################  Dataset loaded  ##############################')
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+    resnet = torchvision.models.resnet152()
+    resnet.fc = nn.Linear(resnet.fc.in_features, 100)
+    resnet.load_state_dict(torch.load("./dist_model/resnet152.pth"))
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = '1'
     device = torch.device('cuda')
     args = {
         'loader_train': loader_train, 'loader_val': loader_val,
         'device': device, 'dtype': torch.float32,
-        'model': mobile_former_151(100),
-        # 'model': mobile_former_151(100, pre_train=True, state_dir='./bridge_ablation/mobile_former_151.pt'),
+        # 'model': mobile_former_151(100),
+        'model': mobile_former_151(100, pre_train=True, state_dir='./tune_model/mobile_former_151.pt'),
+        'teacher': resnet,
         'criterion': nn.CrossEntropyLoss(),
         # 余弦退火
         'T_mult': 2,
         'epoch': 300, 'lr': 0.0009, 'wd': 0.10,
-        'check_point_dir': './bridge_ablation/', 'save_epochs': 3,
+        'save_epochs': 3,
     }
     run(**args)

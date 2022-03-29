@@ -3,6 +3,7 @@ import torch
 import random
 import numpy as np
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 def cutmix(input, target, beta):
@@ -22,6 +23,22 @@ def cutmix(input, target, beta):
 
 def cutmix_criterion(criterion, output, target_a, target_b, lam):
     return lam * criterion(output, target_a) + (1. - lam) * criterion(output, target_b)
+
+
+def distill_criterion(criterion, output, target_a, target_b, lam, soft_out):
+    # 硬标签损失
+    hard_loss = lam * criterion(output, target_a) + (1. - lam) * criterion(output, target_b)
+    # 软标签损失
+    soft_criterion = nn.KLDivLoss()
+    T = 2
+    outputs_S = F.log_softmax(torch.div(output, T), dim=1)
+    outputs_T = F.softmax(torch.div(soft_out, T), dim=1)
+    soft_loss = soft_criterion(outputs_S, outputs_T) * T * T
+
+    # 综合损失
+    alpha = 0.5
+    loss = hard_loss * (1 - alpha) + soft_loss * alpha
+    return loss
 
 # 计算随机裁剪小方块的四角坐标
 def rand_box(size, lam):

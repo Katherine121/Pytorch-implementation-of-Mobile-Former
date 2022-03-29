@@ -3,37 +3,43 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 if __name__ == "__main__":
-    fp1 = open('./bridge_ablation/avgloss.txt', 'r')
+    fp1 = open('./dist_model/avgloss.txt', 'r')
     total_loss = []
+    i = 0
     for loss in fp1:
-        loss = loss.strip('\n')  # 将\n去掉
-        total_loss.append(loss)
+        if i >= 15:
+            loss = loss.strip('\n')  # 将\n去掉
+            total_loss.append(loss)
+        i += 1
     fp1.close()
 
     total_loss = np.array(total_loss, dtype=float)  # 将其转换成numpy的数组，并定义数据类型为float
     # print(total_loss)
 
-    fp2 = open('./bridge_ablation/testacc.txt', 'r')
+    fp2 = open('./dist_model/testacc.txt', 'r')
     total_acc = []
+    i = 0
     for acc in fp2:
-        acc = acc.strip('\n')  # 将\n去掉
-        total_acc.append(acc)
+        if i >= 15:
+            acc = acc.strip('\n')  # 将\n去掉
+            total_acc.append(acc)
+        i += 1
     fp2.close()
 
     total_acc = np.array(total_acc, dtype=float)  # 将其转换成numpy的数组，并定义数据类型为float
     # print(total_acc)
 
-    X = np.linspace(0, 157, 158)
+    X = np.linspace(0, 60, 61)
     # Y1 = total_loss
     Y2 = total_acc
 
     plt.figure(figsize=(8, 6))  # 定义图的大小
-    plt.title("Pretrain Result")
+    plt.title("Distill Result")
 
     plt.xlabel("Train Epoch")
     # plt.ylabel("Train Loss")
     plt.ylabel("Test Acc")
-    plt.text(X[-30], Y2[-1], "(" + str(int(X[-1])) + ", " + str(Y2[-1]) + ")")
+    plt.text(X[-8], Y2[-1], "(" + str(int(X[-1])) + ", " + str(Y2[-1]) + ")")
 
     # plt.plot(X, Y1)
     plt.plot(X, Y2)

@@ -17,8 +17,8 @@ if __name__ == '__main__':
 
     # Load ONNX model
     print('--> Loading model')
-    ret = rknn.load_onnx(model='./bridge_ablation/mobile_former_151.onnx')
-    # ret = rknn.load_rknn('./bridge_ablation/mobile_former_151.rknn')
+    ret = rknn.load_onnx(model='./dist_model/mobile_former_151.onnx')
+    # ret = rknn.load_rknn('./dist_model/mobile_former_151.rknn')
     if ret != 0:
         print('Load model failed!')
         exit(ret)
@@ -35,13 +35,13 @@ if __name__ == '__main__':
 
     # Export RKNN model
     print('--> Export RKNN model')
-    ret = rknn.export_rknn('./bridge_ablation/mobile_former_151.rknn')
+    ret = rknn.export_rknn('./dist_model/mobile_former_151.rknn')
     if ret != 0:
         print('Export model.rknn failed!')
         exit(ret)
     print('done')
 
-    ret = rknn.load_rknn('./bridge_ablation/mobile_former_151.rknn')
+    ret = rknn.load_rknn('./dist_model/mobile_former_151.rknn')
 
     # init runtime environment
     print('--> Init runtime environment')

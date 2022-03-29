@@ -27,7 +27,7 @@ def get_test_transform():
 
 
 if __name__ == "__main__":
-    onnx_model_path = "./bridge_ablation/mobile_former_151.onnx"
+    onnx_model_path = "./dist_model/mobile_former_151.onnx"
     # onnx测试
     onnx_session = onnxruntime.InferenceSession(onnx_model_path, providers=['CPUExecutionProvider'])
 
