@@ -111,7 +111,7 @@ def mobile_former_151(num_class, pre_train=False, state_dir=None):
     model = MobileFormer(cfg)
     if pre_train:
         print('Model loading...')
-        model = torch.load(state_dir)
+        model.load_state_dict(torch.load(state_dir))
         print('Model loaded.')
     else:
         print('Model initialized.')
@@ -119,14 +119,14 @@ def mobile_former_151(num_class, pre_train=False, state_dir=None):
 
 
 if __name__ == "__main__":
-    model = mobile_former_151(100, pre_train=True, state_dir='./bridge_ablation/mobile_former_151.pt')
-    inputs = torch.randn((1, 3, 224, 224)).cuda()
+    model = mobile_former_151(100)
+    inputs = torch.randn((1, 3, 224, 224))
     # 第一种方法
     flops, params = profile(model, (inputs,))
     print('flops: ', flops, 'params: ', params)
     print('flops: %.2f M, params: %.2f M' % (flops / 1000000.0, params / 1000000.0))
-    # 第二种方法：每一个block的参数量和计算量都有
-    flops, params = get_model_complexity_info(model, (3, 224, 224), as_strings=True, print_per_layer_stat=True)
-    print('flops: ', flops, 'params: ', params)
-    # 第三种方法：每一个block的参数量和计算量都有。更简略
-    print(summary(model, inputs, show_input=False, show_hierarchical=False))
+    # # 第二种方法：每一个block的参数量和计算量都有
+    # flops, params = get_model_complexity_info(model, (3, 224, 224), as_strings=True, print_per_layer_stat=True)
+    # print('flops: ', flops, 'params: ', params)
+    # # 第三种方法：每一个block的参数量和计算量都有。更简略
+    # print(summary(model, inputs, show_input=False, show_hierarchical=False))

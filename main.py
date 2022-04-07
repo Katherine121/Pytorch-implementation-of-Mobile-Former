@@ -55,11 +55,11 @@ def train(
     losses = []
 
     model = model.to(device)
-    teacher = teacher.to(device)
-    teacher.eval()
-    for param in teacher.parameters():
-        param.requires_grad = False
-
+    # teacher = teacher.to(device)
+    # teacher.eval()
+    # for param in teacher.parameters():
+    #     param.requires_grad = False
+    flag = 0.7409
     for e in range(epochs):
         model.train()
         total_loss = 0
@@ -71,11 +71,12 @@ def train(
             inputs, targets_a, targets_b, lam = cutmix(x, y, 1)
             # 原x+混x->原y+混y
             outputs = model(inputs)
-            soft_out = teacher(inputs)
+            # soft_out = teacher(inputs)
 
             # 原y+混y和原t，混t求损失：lam越大，小方块越小，被识别成真图片的概率越大
             # 2
-            loss = distill_criterion(criterion, outputs, targets_a, targets_b, lam, soft_out)
+            loss = cutmix_criterion(criterion, outputs, targets_a, targets_b, lam)
+            # loss = distill_criterion(criterion, outputs, targets_a, targets_b, lam, soft_out)
             loss_value = np.array(loss.item())
             total_loss += loss_value
 
@@ -102,27 +103,28 @@ def train(
         # 每个epoch记录一次测试集准确率和所有batch的平均训练损失
         print("Epoch:" + str(e) + ', Val acc = ' + str(acc) + ', average Loss = ' + str(total_loss))
         # 将每个epoch的平均损失写入文件
-        with open("./dist_model/avgloss.txt", "a") as file1:
+        with open("./acc/avgloss.txt", "a") as file1:
             file1.write(str(total_loss) + '\n')
         file1.close()
         # 将每个epoch的测试集准确率写入文件
-        with open("./dist_model/testacc.txt", "a") as file2:
+        with open("./acc/testacc.txt", "a") as file2:
             file2.write(str(acc) + '\n')
         file2.close()
 
         # 如果到了保存的epoch或者是训练完成的最后一个epoch
-        # if (e % save_epochs == 0 and e != 0) or e == epochs - 1 or acc >= 0.765:
-        if acc > 0.7848:
-            np.save('./dist_model/record_val_acc.npy', np.array(accs))
-            np.save('./dist_model/record_loss.npy', np.array(losses))
+        # if (e % save_epochs == 0 and e != 0) or e == epochs - 1 or acc >= 0.7844:
+        if acc > flag:
+            flag = acc
+            # np.save('./acc/record_val_acc.npy', np.array(accs))
+            # np.save('./acc/record_loss.npy', np.array(losses))
             model.eval()
             # 保存模型参数
-            torch.save(model.state_dict(), './dist_model/mobile_former_151.pth')
+            torch.save(model.state_dict(), './acc/mobile_former_151.pth')
             # 保存模型结构
-            torch.save(model, './dist_model/mobile_former_151.pt')
+            torch.save(model, './acc/mobile_former_151.pt')
             # 保存jit模型
             trace_model = torch.jit.trace(model, torch.Tensor(1, 3, 224, 224).cuda())
-            torch.jit.save(trace_model, './dist_model/mobile_former_jit.pt')
+            torch.jit.save(trace_model, './acc/mobile_former_jit.pt')
     return acc
 
 
@@ -208,18 +210,25 @@ if __name__ == '__main__':
     resnet.fc = nn.Linear(resnet.fc.in_features, 100)
     resnet.load_state_dict(torch.load("./dist_model/resnet152.pth"))
 
+    # model = mobile_former_151(100, pre_train=True, state_dir='./acc/mobile_former_151.pt')
+    # classifier = nn.Hardtanh(min_val=0,max_val=6)
+    # # 然后替换一下就可以了
+    # model.stem[2] = classifier
+    # model.bneck[1] = classifier
+    # model.tanh = classifier
+
     os.environ["CUDA_VISIBLE_DEVICES"] = '1'
     device = torch.device('cuda')
     args = {
         'loader_train': loader_train, 'loader_val': loader_val,
         'device': device, 'dtype': torch.float32,
         # 'model': mobile_former_151(100),
-        'model': mobile_former_151(100, pre_train=True, state_dir='./tune_model/mobile_former_151.pt'),
+        'model': mobile_former_151(100, pre_train=True, state_dir='./acc/mobile_former_151.pth'),
         'teacher': resnet,
         'criterion': nn.CrossEntropyLoss(),
         # 余弦退火
         'T_mult': 2,
-        'epoch': 300, 'lr': 0.0009, 'wd': 0.10,
+        'epoch': 480, 'lr': 0.0009, 'wd': 0.10,
         'save_epochs': 3,
     }
     run(**args)

@@ -4,17 +4,16 @@ from model_generator import *
 
 # python -m onnxsim rk3399_model/mobile_former_151.onnx rk3399_model/mobile_former_sim.onnx
 if __name__ == '__main__':
-    model = mobile_former_151(100, pre_train=True, state_dir="./dist_model/mobile_former_151.pt")
+    model = mobile_former_151(100, pre_train=True, state_dir='./acc/mobile_former_151.pth')
     model.cpu()
     model.eval()
-
     # for name, param in model.named_parameters():
-    #     if "token" in name:
+    #     if 'token' in name:
     #         print(param)
 
     x = torch.Tensor(1,3,224,224)
 
-    export_onnx_file = "./dist_model/mobile_former_151.onnx"  # 目的ONNX文件名
+    export_onnx_file = "./acc/mobile_former_151.onnx"  # 目的ONNX文件名
     torch.onnx.export(model,
                       x,
                       export_onnx_file,

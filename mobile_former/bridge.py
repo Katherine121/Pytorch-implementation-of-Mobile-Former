@@ -29,7 +29,7 @@ class Former2Mobile(nn.Module):
         k = self.to_k(z).view(b, self.heads, m, c)
         v = self.to_v(z).view(b, self.heads, m, c)
         # b,1,h*w,c @ b,head,c,m -> b,head,h*w,m
-        dots = q @ k.transpose(2, 3) * self.scale
+        dots = q @ k.transpose(2, 3)
         attn = self.attend(dots)
         # b,head,h*w,m @ b,head,m,c -> b,head,h*w,c
         out = attn @ v
