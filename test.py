@@ -25,13 +25,13 @@ if __name__ == "__main__":
     total_samples = 0
 
     transform = transforms.Compose([
-        transforms.Resize(224),
+        transforms.Resize((224,224)),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
     transform_aug = transforms.Compose([
         autoaugment.CIFAR10Policy(),
-        transforms.Resize(224),
+        transforms.Resize((224,224)),
         transforms.ToTensor(),
         # 接收tensor
         transforms.RandomErasing(),

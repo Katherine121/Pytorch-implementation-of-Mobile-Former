@@ -55,11 +55,11 @@ def train(
     losses = []
 
     model = model.to(device)
-    # teacher = teacher.to(device)
-    # teacher.eval()
-    # for param in teacher.parameters():
-    #     param.requires_grad = False
-    flag = 0.7409
+    teacher = teacher.to(device)
+    teacher.eval()
+    for param in teacher.parameters():
+        param.requires_grad = False
+    flag = 0.7545
     for e in range(epochs):
         model.train()
         total_loss = 0
@@ -71,12 +71,12 @@ def train(
             inputs, targets_a, targets_b, lam = cutmix(x, y, 1)
             # 原x+混x->原y+混y
             outputs = model(inputs)
-            # soft_out = teacher(inputs)
+            soft_out = teacher(inputs)
 
             # 原y+混y和原t，混t求损失：lam越大，小方块越小，被识别成真图片的概率越大
             # 2
-            loss = cutmix_criterion(criterion, outputs, targets_a, targets_b, lam)
-            # loss = distill_criterion(criterion, outputs, targets_a, targets_b, lam, soft_out)
+            # loss = cutmix_criterion(criterion, outputs, targets_a, targets_b, lam)
+            loss = distill_criterion(criterion, outputs, targets_a, targets_b, lam, soft_out)
             loss_value = np.array(loss.item())
             total_loss += loss_value
 
@@ -169,13 +169,13 @@ if __name__ == '__main__':
     print('############################### Dataset loading ###############################')
 
     transform = transforms.Compose([
-        transforms.Resize(224),
+        transforms.Resize((224,224)),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     ])
     transform_aug = transforms.Compose([
         autoaugment.CIFAR10Policy(),
-        transforms.Resize(224),
+        transforms.Resize((224,224)),
         transforms.ToTensor(),
         # 接收tensor
         transforms.RandomErasing(),
@@ -209,13 +209,6 @@ if __name__ == '__main__':
     resnet = torchvision.models.resnet152()
     resnet.fc = nn.Linear(resnet.fc.in_features, 100)
     resnet.load_state_dict(torch.load("./dist_model/resnet152.pth"))
-
-    # model = mobile_former_151(100, pre_train=True, state_dir='./acc/mobile_former_151.pt')
-    # classifier = nn.Hardtanh(min_val=0,max_val=6)
-    # # 然后替换一下就可以了
-    # model.stem[2] = classifier
-    # model.bneck[1] = classifier
-    # model.tanh = classifier
 
     os.environ["CUDA_VISIBLE_DEVICES"] = '1'
     device = torch.device('cuda')
