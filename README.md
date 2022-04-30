@@ -1,21 +1,44 @@
-# Simple-implementation-of-Mobile-Former
+# Pytorch-implementation-of-Mobile-Former
 
-At present, only the model but no trained. There may be some bug in the code, and some details may be different from the original paper, if you are interested in this, welcome to discuss.
+## Table of Branches
 
-Add: CutUp,MixUp,RandomErasing,SyncBatchNorm for DDP train
+main - main branch is deprecated
+pretrain - pretrain branch is mobileformer pretrained code
+rembridge - rembridge branch is mobileformer compression code
+tune - tune branch is mobileformer tuned code using structural regularization
+distillation - distillation branch is mobileformer distilled code using Resnet152 model
+rk3399 - rk3399 branch is mobileformer deployed code on Rockchip RK3399ProD
 
-There are tow way for qkv aline in new code，A: Split token dim into heads(N); B: Broadcast x while product(Y)
+## Project structure
 
-Add: Make model by config(mf52, mf294, mf508) in config.py, the number of parameters almost same with paper
+(rk3399 branch is as the criterion)
+Pytorch-implementation-of-Mobile-Former
+|-- mobile_former   model structure
+|   |-- bridge.py  mobile->former and former->mobile
+|   |-- former.py  transformer block
+|   |-- mobile.py  mobile block
+|   |-- model.py   the whole model structure
+|-- process_data   data augment oprations
+|   |-- autoaugment.py     autoaugment policy
+|   |-- ops.py     oprations of autoaugment used
+|   |-- utils.py   cutmix policy
+|-- draw.py     draw train loss and test acc pictures
+|-- main.py     train and test mobileformer
+|-- model_generator.py     mobileformer params config(mf151, mf294, mf508)
+|-- test.py     test acc
+|-- to_onnx.py     transform .pt to .onnx
+|-- to_rknn.py     transformer .onnx to .rknn
+|-- valid_onnx.py    validate .onnx model acc
 
-Train：python main.py --name mf294 --data path/to/ImageNet --dist-url 'tcp://127.0.0.1:12345' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 --batch-size 256 
+## Train and Test
 
-Inference:
+Using Autoaugment, RandomErasing and cutmix to realize data augment
+Realize mobileformer by mf151, mf294, mf508 in model_generator.py
 
-paper:https://arxiv.org/pdf/2108.05895.pdf
+```angular2html
+test main.py
+```
 
-https://github.com/xiaolai-sqlai/mobilenetv3
+## Inference
 
-https://github.com/lucidrains/vit-pytorch
-
-https://github.com/Islanna/DynamicReLU
+https://arxiv.org/pdf/2108.05895.pdf
