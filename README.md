@@ -9,7 +9,7 @@ tune - tune branch is mobileformer tuned code using structural regularization
 distillation - distillation branch is mobileformer distilled code using Resnet152 model  
 rk3399 - rk3399 branch is mobileformer deployed code on Rockchip RK3399ProD  
 
-## Project structure
+## Project Structure
 
 (rk3399 branch is as the criterion)  
 
